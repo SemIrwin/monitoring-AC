@@ -4,12 +4,11 @@
   "campaignIds": [],
   "_doc_automationIds": "Liste d'IDs d'automatisations : seuls les emails de ces automatisations sont suivis. Vide = toutes.",
   "automationIds": [
-    "en-attente-de-selection"
+    "158"
   ],
   "_doc_automationEmailsOnly": "true = ne suivre que les emails envoyés par des automatisations (recommandé). false = suivre aussi les campagnes ponctuelles.",
   "automationEmailsOnly": true,
   "_doc_retention": "Compactage de l'historique : résolution pleine pendant `fullResolutionDays` jours, puis 1 relevé / 6 h jusqu'à `sixHourResolutionDays` jours, puis 1 relevé / 24 h.",
   "fullResolutionDays": 21,
-  "sixHourResolutionDays": 90,
-  "_doc_pause": "PAUSE : valeur non correspondante volontaire — aucun email suivi tant que les automatisations cibles ne sont pas choisies. Remplacer par les vrais IDs."
+  "sixHourResolutionDays": 90
 }
