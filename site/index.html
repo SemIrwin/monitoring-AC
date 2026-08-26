@@ -1131,15 +1131,14 @@
     // ce choix explicite sert de valeur initiale si rien n'est mémorisé.
     var stamped = document.documentElement.getAttribute('data-theme');
     stamped = stamped === 'light' || stamped === 'dark' ? stamped : '';
-    var mode = '';
-    try { mode = localStorage.getItem('mac-theme') || ''; } catch (e) { /* ignoré */ }
-    applyTheme(mode || stamped || 'auto');
+    var current = '';
+    try { current = localStorage.getItem('mac-theme') || ''; } catch (e) { /* ignoré */ }
+    current = current || stamped || 'auto';
+    applyTheme(current);
     $('themeBtn').addEventListener('click', function () {
-      var cur = 'auto';
-      try { cur = localStorage.getItem('mac-theme') || 'auto'; } catch (e) { /* ignoré */ }
-      var next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
-      try { localStorage.setItem('mac-theme', next); } catch (e) { /* ignoré */ }
-      applyTheme(next);
+      current = current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto';
+      try { localStorage.setItem('mac-theme', current); } catch (e) { /* ignoré */ }
+      applyTheme(current);
     });
   })();
 

@@ -116,7 +116,9 @@ cliqueurs uniques (`subscriberclicks`), nouveaux rebonds… Un contact qui ouvre
 aujourd'hui un email reçu avant-hier est compté dans la période d'aujourd'hui.
 L'API ActiveCampaign ne fournit pas l'historique horodaté des événements — le
 suivi commence donc au premier relevé (le cumul « depuis toujours », lui, est
-complet dès le premier relevé).
+complet dès le premier relevé). Un email supprimé ou archivé côté
+ActiveCampaign garde son historique dans le dashboard ; un email exclu via
+`config.json` en disparaît (son historique reste dans `data/snapshots/`).
 
 ## Développement local
 

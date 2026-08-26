@@ -197,7 +197,7 @@ function writeSnapshots(campaignId, rows) {
   renameSync(tmp, file);
 }
 
-function buildDataset({ campaigns, automations, config, now }) {
+function buildDataset({ campaigns, automations, apiIds, now }) {
   const automationById = new Map(automations.map((a) => [String(a.id), a]));
 
   // Métadonnées des emails du dataset précédent : un email qui n'est plus renvoyé
@@ -225,6 +225,10 @@ function buildDataset({ campaigns, automations, config, now }) {
   for (const f of snapFiles) {
     const id = f.slice(0, -'.ndjson'.length);
     if (byId.has(id)) continue;
+    // Un email encore renvoyé par l'API mais absent de `campaigns` a été exclu
+    // volontairement par config.json : on respecte l'exclusion. Seuls les emails
+    // disparus de l'API (supprimés/archivés côté AC) gardent leur historique.
+    if (apiIds.has(id)) continue;
     const old = previous.get(id);
     byId.set(id, {
       id,
@@ -302,7 +306,12 @@ async function main() {
     console.log(`  [${id}] ${campaign.name} — envois=${row.send} ouvreurs=${row.open_u} cliqueurs=${row.click_u} durs=${row.hb} doux=${row.sb}`);
   }
 
-  const dataset = buildDataset({ campaigns: tracked, automations, config, now });
+  const dataset = buildDataset({
+    campaigns: tracked,
+    automations,
+    apiIds: new Set(allCampaigns.map((c) => String(c.id))),
+    now,
+  });
   writeDataset(dataset);
   console.log(`dataset.json généré (${dataset.campaigns.length} email(s), ${new Date(now * 1000).toISOString()}).`);
 }
