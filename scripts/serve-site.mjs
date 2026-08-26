@@ -8,8 +8,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { join, normalize } from 'node:path';
-import { dirname } from 'node:path';
+import { dirname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), '..', 'site');
@@ -21,7 +20,7 @@ createServer(async (req, res) => {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (path.endsWith('/')) path += 'index.html';
     const file = normalize(join(SITE, path));
-    if (!file.startsWith(SITE)) throw new Error('forbidden');
+    if (file !== SITE && !file.startsWith(SITE + sep)) throw new Error('forbidden');
     const body = await readFile(file);
     const ext = file.slice(file.lastIndexOf('.'));
     res.writeHead(200, { 'content-type': TYPES[ext] || 'application/octet-stream', 'cache-control': 'no-store' });
@@ -30,4 +29,4 @@ createServer(async (req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('404');
   }
-}).listen(PORT, () => console.log(`Dashboard sur http://127.0.0.1:${PORT}`));
+}).listen(PORT, '127.0.0.1', () => console.log(`Dashboard sur http://127.0.0.1:${PORT}`));

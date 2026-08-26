@@ -199,22 +199,49 @@ function writeSnapshots(campaignId, rows) {
 
 function buildDataset({ campaigns, automations, config, now }) {
   const automationById = new Map(automations.map((a) => [String(a.id), a]));
-  const outCampaigns = [];
-  const series = {};
 
+  // Métadonnées des emails du dataset précédent : un email qui n'est plus renvoyé
+  // par l'API (supprimé/archivé côté ActiveCampaign, ou exclu par un changement de
+  // config) garde son historique et son nom dans le dashboard.
+  let previous = new Map();
+  try {
+    const prev = JSON.parse(readFileSync(DATASET_PATH, 'utf8'));
+    previous = new Map((prev.campaigns || []).map((c) => [String(c.id), c]));
+  } catch { /* premier passage : pas de dataset précédent */ }
+
+  const byId = new Map();
   for (const c of campaigns) {
     const id = String(c.id);
-    const rows = readSnapshots(id);
-    if (rows.length === 0) continue;
     const auto = automationById.get(String(c.seriesid));
-    outCampaigns.push({
+    byId.set(id, {
       id,
       name: String(c.name || `Email ${id}`),
       automationId: c.seriesid ? String(c.seriesid) : null,
       automationName: auto ? String(auto.name) : null,
       sdate: c.sdate || null,
     });
-    series[id] = rows.map((r) => COLS.map((k) => toInt(r[k])));
+  }
+  const snapFiles = existsSync(SNAP_DIR) ? readdirSync(SNAP_DIR).filter((f) => f.endsWith('.ndjson')) : [];
+  for (const f of snapFiles) {
+    const id = f.slice(0, -'.ndjson'.length);
+    if (byId.has(id)) continue;
+    const old = previous.get(id);
+    byId.set(id, {
+      id,
+      name: old ? String(old.name) : `Email ${id}`,
+      automationId: old ? old.automationId : null,
+      automationName: old ? old.automationName : null,
+      sdate: old ? old.sdate : null,
+    });
+  }
+
+  const outCampaigns = [];
+  const series = {};
+  for (const meta of byId.values()) {
+    const rows = readSnapshots(meta.id);
+    if (rows.length === 0) continue;
+    outCampaigns.push(meta);
+    series[meta.id] = rows.map((r) => COLS.map((k) => toInt(r[k])));
   }
 
   outCampaigns.sort((a, b) =>

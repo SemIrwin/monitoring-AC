@@ -565,7 +565,8 @@
     scale.ticks.forEach(function (v) {
       svg.appendChild(svgEl('line', { x1: m.l, x2: m.l + pw, y1: yOf(v), y2: yOf(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }));
       var lbl = svgEl('text', { x: m.l - 7, y: yOf(v) + 3.5, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 11, style: 'font-variant-numeric: tabular-nums' });
-      lbl.textContent = opts.isPct ? fmtPct(v, v * 100 < 1 && v > 0 ? 1 : 0) : fmtInt(v);
+      // Décimale affichée dès que la graduation n'est pas entière (ex. 1,5 %).
+      lbl.textContent = opts.isPct ? fmtPct(v, Math.abs((v * 100) % 1) > 1e-9 ? 1 : 0) : fmtInt(v);
       svg.appendChild(lbl);
     });
 
@@ -587,7 +588,9 @@
       buckets.forEach(function (b, i) {
         var v = s.value(b);
         if (v === null || !isFinite(v)) { pen = false; return; }
-        var x = xOf(i), y = yOf(v);
+        // Un compteur en baisse côté AC peut produire un taux négatif : tracé
+        // plaqué sur l'axe (la période est déjà marquée ≈, l'info-bulle garde la vraie valeur).
+        var x = xOf(i), y = yOf(Math.max(0, v));
         d += (pen ? ' L ' : ' M ') + x.toFixed(1) + ' ' + y.toFixed(1);
         pen = true;
         lastPt = { x: x, y: y, v: v };
@@ -818,8 +821,9 @@
     var tEnd = rows[rows.length - 1][IDX.t];
     var cur = metricsBetween(rows, tEnd - P, tEnd);
     var prev = metricsBetween(rows, tEnd - 2 * P, tEnd - P);
+    var pv = prev && !prev.partial ? prev : null;
     $('periodSub').textContent = 'Activité du ' + tsFull(tEnd - P) + ' au ' + tsFull(tEnd) +
-      ' (' + hoursLabel(state.periodHours) + ').' + (prev ? ' Comparée aux ' + hoursLabel(state.periodHours) + ' précédentes.' : '');
+      ' (' + hoursLabel(state.periodHours) + ').' + (pv ? ' Comparée aux ' + hoursLabel(state.periodHours) + ' précédentes.' : '');
 
     if (!cur) {
       note.hidden = false;
@@ -830,7 +834,6 @@
       note.hidden = false;
       note.textContent = '° Période partielle : le suivi a commencé le ' + tsDayTime(rows[0][IDX.t]) + '.';
     }
-    var pv = prev && !prev.partial ? prev : null;
 
     box.appendChild(tile({
       label: 'Envois', color: COLORS.vol, value: fmtInt(cur.abs.send), sub: fmtInt(cur.rate.deliv) + ' délivrés',
@@ -1030,9 +1033,13 @@
       });
       sel.appendChild(g);
     }
-    var valid = ['all'].concat(ds.automations.map(function (a) { return 'a:' + a.id; }), ds.campaigns.map(function (c) { return 'c:' + c.id; }));
-    if (valid.indexOf(state.emailKey) === -1) state.emailKey = 'all';
+    // Validation contre les options réellement construites (une clé mémorisée
+    // peut ne plus correspondre à aucune option après suppression d'un email).
     sel.value = state.emailKey;
+    if (sel.value !== state.emailKey) {
+      state.emailKey = 'all';
+      sel.value = 'all';
+    }
     sel.addEventListener('change', function () {
       state.emailKey = sel.value;
       persistState();
@@ -1100,7 +1107,10 @@
       }
     } catch (e) { /* ignoré */ }
     var m = location.hash.match(/e=([^&]+)/);
-    if (m) state.emailKey = decodeURIComponent(m[1]);
+    if (m) {
+      try { state.emailKey = decodeURIComponent(m[1]); }
+      catch (e) { /* hash malformé (lien tronqué) : ignoré */ }
+    }
     var pm = location.hash.match(/p=(c?)(\d+)/);
     if (pm) {
       state.periodHours = Math.max(1, Math.min(720, Number(pm[2])));
@@ -1117,9 +1127,13 @@
     $('themeBtn').textContent = 'Thème : ' + (mode === 'light' ? 'clair' : mode === 'dark' ? 'sombre' : 'auto');
   }
   (function initTheme() {
-    var mode = 'auto';
-    try { mode = localStorage.getItem('mac-theme') || 'auto'; } catch (e) { /* ignoré */ }
-    applyTheme(mode);
+    // Un hôte (ex. visionneuse d'artifact) peut avoir estampillé data-theme :
+    // ce choix explicite sert de valeur initiale si rien n'est mémorisé.
+    var stamped = document.documentElement.getAttribute('data-theme');
+    stamped = stamped === 'light' || stamped === 'dark' ? stamped : '';
+    var mode = '';
+    try { mode = localStorage.getItem('mac-theme') || ''; } catch (e) { /* ignoré */ }
+    applyTheme(mode || stamped || 'auto');
     $('themeBtn').addEventListener('click', function () {
       var cur = 'auto';
       try { cur = localStorage.getItem('mac-theme') || 'auto'; } catch (e) { /* ignoré */ }
