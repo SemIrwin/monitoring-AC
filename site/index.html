@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoring AC</title>
+<meta name="description" content="Monitoring des emails d'automatisation ActiveCampaign : ouvertures, clics, CTOR, rebonds — en absolu et en taux, par période.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232a78d6'/%3E%3Cpath d='M3 10.5 6.2 7l2.6 2.3L13 5' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- ARTIFACT:STYLE:BEGIN -->
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --s-open: #2a78d6;   /* taux d'ouverture */
+    --s-click: #eb6834;  /* taux de clic */
+    --s-ctor: #1baf7a;   /* CTOR */
+    --s-hb: #e87ba4;     /* rebonds durs */
+    --s-sb: #eda100;     /* rebonds doux */
+    --s-vol: #4a3aa7;    /* envois */
+    --good: #006300;
+    --bad: #d03b3b;
+    --warn-bg: #fdf3dd;
+    --warn-ink: #6b4e00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --s-open: #3987e5;
+      --s-click: #d95926;
+      --s-ctor: #199e70;
+      --s-hb: #d55181;
+      --s-sb: #c98500;
+      --s-vol: #9085e9;
+      --good: #0ca30c;
+      --bad: #e66767;
+      --warn-bg: #33290e;
+      --warn-ink: #eecf8a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --s-open: #3987e5;
+    --s-click: #d95926;
+    --s-ctor: #199e70;
+    --s-hb: #d55181;
+    --s-sb: #c98500;
+    --s-vol: #9085e9;
+    --good: #0ca30c;
+    --bad: #e66767;
+    --warn-bg: #33290e;
+    --warn-ink: #eecf8a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 20px 20px 64px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 4px; }
+  header.top h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .status { color: var(--ink-2); font-size: 13px; }
+  .top-spacer { flex: 1; }
+  button.ghost {
+    background: none; border: 1px solid var(--border); color: var(--ink-2);
+    border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--axis); }
+
+  .banner {
+    margin: 12px 0 0; padding: 9px 14px; border-radius: 10px; font-size: 13px;
+    background: var(--warn-bg); color: var(--warn-ink); display: none;
+  }
+  .banner.show { display: block; }
+
+  .filters {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 12px 0; margin: 8px 0 4px;
+    background: var(--page);
+    border-bottom: 1px solid var(--border);
+  }
+  .filters label { color: var(--ink-2); font-size: 12.5px; }
+  .filters select, .filters input[type="number"] {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--axis); border-radius: 8px; padding: 6px 8px; max-width: 340px;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    background: var(--surface); color: var(--ink-2); border: none; border-right: 1px solid var(--axis);
+    padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--page); font-weight: 600; }
+  #customHours { width: 74px; display: none; }
+  #customHours.show { display: inline-block; }
+
+  section { margin-top: 28px; }
+  section > h2 { font-size: 15px; font-weight: 650; margin: 0 0 2px; }
+  section > .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); gap: 10px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px 10px; min-width: 0;
+  }
+  .tile .lbl { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .tile .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .tile .val { font-size: 27px; font-weight: 650; margin-top: 3px; letter-spacing: -0.01em; }
+  .tile .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+  .tile .delta { font-size: 12.5px; margin-top: 3px; color: var(--muted); }
+  .tile .delta .up { color: var(--good); }
+  .tile .delta .down { color: var(--bad); }
+  .tile svg.spark { display: block; margin-top: 7px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px 10px; margin-top: 10px;
+  }
+  .card h3 { font-size: 13.5px; font-weight: 650; margin: 0; }
+  .card .chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .lk { width: 14px; height: 2px; border-radius: 1px; }
+  .legend .bk { width: 10px; height: 10px; border-radius: 3px; }
+  .chart-box { position: relative; }
+  .chart-box svg { display: block; width: 100%; }
+
+  .note { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+
+  .tbl-wrap { overflow-x: auto; }
+  table.detail { border-collapse: collapse; width: 100%; font-size: 12.8px; white-space: nowrap; }
+  table.detail th, table.detail td { padding: 6px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.detail th { color: var(--ink-2); font-weight: 600; border-bottom: 1px solid var(--axis); }
+  table.detail th:first-child, table.detail td:first-child { text-align: left; }
+  table.detail tbody tr { border-bottom: 1px solid var(--grid); }
+  table.detail tbody tr:last-child { border-bottom: none; }
+  table.detail tr.total td { font-weight: 650; border-top: 1px solid var(--axis); }
+  table.detail .rate { color: var(--ink-2); }
+
+  #tooltip {
+    position: fixed; z-index: 50; pointer-events: none; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    padding: 8px 11px; font-size: 12.5px; max-width: 300px;
+  }
+  #tooltip .tt-title { color: var(--muted); font-size: 11.5px; margin-bottom: 5px; }
+  #tooltip .tt-row { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+  #tooltip .tt-key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+  #tooltip .tt-val { font-weight: 650; }
+  #tooltip .tt-name { color: var(--ink-2); }
+
+  .placeholder {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 22px 24px; margin-top: 18px; max-width: 760px;
+  }
+  .placeholder h2 { margin: 0 0 8px; font-size: 16px; }
+  .placeholder ol { margin: 8px 0 0; padding-left: 20px; color: var(--ink-2); }
+  .placeholder li { margin: 4px 0; }
+  .placeholder code { background: var(--page); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+
+  details.metho { margin-top: 26px; color: var(--ink-2); font-size: 13px; max-width: 860px; }
+  details.metho summary { cursor: pointer; color: var(--ink); font-weight: 600; font-size: 13.5px; }
+  details.metho dt { font-weight: 600; color: var(--ink); margin-top: 8px; }
+  details.metho dd { margin: 2px 0 0 0; }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+<!-- ARTIFACT:STYLE:END -->
+</head>
+<body>
+<!-- ARTIFACT:BODY:BEGIN -->
+<div class="wrap">
+  <header class="top">
+    <h1>Monitoring emails — ActiveCampaign</h1>
+    <span class="status" id="lastUpdate"></span>
+    <span class="top-spacer"></span>
+    <button class="ghost" id="themeBtn" type="button">Thème : auto</button>
+  </header>
+
+  <div class="banner" id="banner" role="status"></div>
+
+  <div class="filters" id="filters" hidden>
+    <label for="emailSel">Email</label>
+    <select id="emailSel"></select>
+    <label id="periodLbl">Période
+      <span class="seg" id="periodSeg" role="group" aria-label="Taille de période"></span>
+    </label>
+    <input type="number" id="customHours" min="1" max="720" step="1" value="6" aria-label="Période personnalisée en heures">
+    <span class="status" id="customUnit" style="display:none">h</span>
+  </div>
+
+  <div class="placeholder" id="setup" hidden>
+    <h2>En attente des premières données</h2>
+    <p>Le fichier <code>data/dataset.json</code> n'existe pas encore. Il est créé par le
+    relevé automatique (GitHub Actions) qui interroge ActiveCampaign toutes les heures.</p>
+    <ol>
+      <li>Dans le dépôt GitHub : <strong>Settings → Secrets and variables → Actions</strong>, ajouter
+        <code>AC_API_URL</code> et <code>AC_API_KEY</code> (Paramètres → Développeur dans ActiveCampaign).</li>
+      <li>Lancer le workflow <strong>« Relevé des métriques AC »</strong> une première fois
+        (onglet Actions → Run workflow), ou attendre le prochain relevé planifié.</li>
+      <li>Recharger cette page.</li>
+    </ol>
+  </div>
+
+  <main id="app" hidden>
+    <section aria-labelledby="hGlobal">
+      <h2 id="hGlobal">Tendance globale — cumul</h2>
+      <p class="sub" id="globalSub"></p>
+      <div class="tiles" id="globalTiles"></div>
+    </section>
+
+    <section aria-labelledby="hPeriod">
+      <h2 id="hPeriod">Période en cours</h2>
+      <p class="sub" id="periodSub"></p>
+      <div class="tiles" id="periodTiles"></div>
+      <p class="note" id="periodNote" hidden></p>
+    </section>
+
+    <section aria-labelledby="hCharts">
+      <h2 id="hCharts">Évolution par période</h2>
+      <p class="sub" id="chartsSub"></p>
+
+      <div class="card">
+        <div class="chart-head">
+          <h3>Taux d'ouverture, taux de clic et CTOR</h3>
+          <div class="legend" id="ratesLegend"></div>
+        </div>
+        <div class="chart-box" id="ratesChart"></div>
+      </div>
+
+      <div class="card">
+        <div class="chart-head">
+          <h3>Taux de rebond</h3>
+          <div class="legend" id="bounceLegend"></div>
+        </div>
+        <div class="chart-box" id="bounceChart"></div>
+      </div>
+
+      <div class="card">
+        <div class="chart-head">
+          <h3>Envois par période</h3>
+        </div>
+        <div class="chart-box" id="volumeChart"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="hTable">
+      <h2 id="hTable">Détail par période</h2>
+      <p class="sub">Chiffres absolus et taux de chaque période, la plus récente en haut.</p>
+      <div class="card tbl-wrap" id="tableCard"></div>
+    </section>
+
+    <details class="metho">
+      <summary>Méthodologie et définitions</summary>
+      <dl>
+        <dt>Source des données</dt>
+        <dd>Les compteurs cumulés de chaque email (rapport de campagne ActiveCampaign) sont relevés
+        à intervalle régulier. Les chiffres d'une période sont la <em>variation</em> de ces compteurs
+        entre le début et la fin de la période : nouveaux envois, nouveaux ouvreurs uniques, etc.
+        Un contact qui ouvre pendant la période un email reçu avant la période est donc compté dans
+        la période de son ouverture.</dd>
+        <dt>Délivrés</dt><dd>Envois − rebonds durs − rebonds doux.</dd>
+        <dt>Taux d'ouverture</dt><dd>Ouvreurs uniques ÷ délivrés.</dd>
+        <dt>Taux de clic</dt><dd>Cliqueurs uniques ÷ délivrés.</dd>
+        <dt>CTOR</dt><dd>Cliqueurs uniques ÷ ouvreurs uniques (click-to-open rate).</dd>
+        <dt>Taux de rebond dur / doux</dt><dd>Rebonds ÷ envois.</dd>
+        <dt>Période partielle (°)</dt><dd>Le suivi a commencé en cours de période : seuls les
+        événements depuis le premier relevé sont comptés.</dd>
+        <dt>Période approximative (≈)</dt><dd>Soit l'historique ancien est conservé à résolution
+        réduite (6 h puis 24 h) et les bornes de la période sont arrondies au relevé le plus proche,
+        soit un compteur a diminué côté ActiveCampaign (contacts ou campagnes supprimés).</dd>
+        <dt>Cliqueurs uniques</dt><dd>Contacts uniques ayant cliqué sur au moins un lien
+        (champ « subscriberclicks » de l'API, le « Unique clicks » du rapport ActiveCampaign).</dd>
+        <dt>Vue agrégée</dt><dd>Somme des compteurs de tous les emails sélectionnés. Un email ajouté
+        au suivi en cours de route contribue à partir de son premier relevé.</dd>
+      </dl>
+    </details>
+  </main>
+</div>
+<div id="tooltip" role="presentation"></div>
+
+<script>
+'use strict';
+(function () {
+  // ---------- Constantes ----------
+  var COLORS = {
+    open: 'var(--s-open)', click: 'var(--s-click)', ctor: 'var(--s-ctor)',
+    hb: 'var(--s-hb)', sb: 'var(--s-sb)', vol: 'var(--s-vol)'
+  };
+  var PRESETS = [
+    { h: 12, label: '12 h' }, { h: 24, label: '24 h' }, { h: 48, label: '48 h' },
+    { h: 72, label: '72 h' }, { h: 168, label: '7 j' }, { h: 0, label: 'Autre…' }
+  ];
+  var MAX_TABLE_ROWS = 60;
+
+  var state = { dataset: null, emailKey: 'all', periodHours: 48, customHours: 6, usingCustom: false };
+  var seriesCache = {};
+
+  var $ = function (id) { return document.getElementById(id); };
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // ---------- Formats (fr-FR) ----------
+  var fmtIntN = new Intl.NumberFormat('fr-FR');
+  function fmtInt(n) { return n === null || n === undefined ? '—' : fmtIntN.format(Math.round(n)); }
+  function fmtSigned(n) { return (n > 0 ? '+' : n < 0 ? '−' : '') + fmtIntN.format(Math.abs(Math.round(n))); }
+  function fmtPct(x, dec) {
+    if (x === null || x === undefined || !isFinite(x)) return '—';
+    var d = dec === undefined ? 1 : dec;
+    return (x * 100).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+  }
+  function fmtPts(x) {
+    if (x === null || x === undefined || !isFinite(x)) return '—';
+    var v = x * 100;
+    return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' pts';
+  }
+  var dfDay = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' });
+  var dfDayTime = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  var dfFull = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  function tsDay(t) { return dfDay.format(new Date(t * 1000)); }
+  function tsDayTime(t) { return dfDayTime.format(new Date(t * 1000)); }
+  function tsFull(t) { return dfFull.format(new Date(t * 1000)); }
+  function agoLabel(t) {
+    var mins = Math.round((Date.now() / 1000 - t) / 60);
+    if (mins < 1) return 'à l’instant';
+    if (mins < 60) return 'il y a ' + mins + ' min';
+    var h = Math.floor(mins / 60);
+    if (h < 48) return 'il y a ' + h + ' h';
+    return 'il y a ' + Math.floor(h / 24) + ' j';
+  }
+  function hoursLabel(h) { return h % 24 === 0 && h >= 48 ? (h / 24) + ' jours' : h + ' h'; }
+
+  // ---------- Accès aux données ----------
+  var IDX = {}; // nom de colonne -> index dans les lignes du dataset
+
+  function rowVal(row, col) { return row[IDX[col]] || 0; }
+
+  function campaignRows(id) {
+    var s = state.dataset.series[id];
+    return s || [];
+  }
+
+  // Agrège plusieurs séries : union des horodatages, report de la dernière valeur
+  // connue ; avant le premier relevé d'un email, sa première valeur est utilisée
+  // (contribution nulle aux variations antérieures à son suivi).
+  function aggregate(idList) {
+    var arrays = idList.map(campaignRows).filter(function (a) { return a.length > 0; });
+    if (arrays.length === 0) return [];
+    if (arrays.length === 1) return arrays[0];
+    var tSet = {};
+    arrays.forEach(function (rows) { rows.forEach(function (r) { tSet[r[IDX.t]] = true; }); });
+    var ts = Object.keys(tSet).map(Number).sort(function (a, b) { return a - b; });
+    var ptr = arrays.map(function () { return 0; });
+    var nCols = state.dataset.cols.length;
+    return ts.map(function (t) {
+      var out = new Array(nCols);
+      for (var c = 0; c < nCols; c++) out[c] = 0;
+      out[IDX.t] = t;
+      arrays.forEach(function (rows, i) {
+        while (ptr[i] + 1 < rows.length && rows[ptr[i] + 1][IDX.t] <= t) ptr[i]++;
+        var row = rows[ptr[i]][IDX.t] <= t ? rows[ptr[i]] : rows[0];
+        for (var c = 1; c < nCols; c++) out[c] += row[c] || 0;
+      });
+      return out;
+    });
+  }
+
+  function seriesFor(key) {
+    if (seriesCache[key]) return seriesCache[key];
+    var rows;
+    if (key === 'all') {
+      rows = aggregate(state.dataset.campaigns.map(function (c) { return c.id; }));
+    } else if (key.indexOf('a:') === 0) {
+      var aid = key.slice(2);
+      rows = aggregate(state.dataset.campaigns
+        .filter(function (c) { return c.automationId === aid; })
+        .map(function (c) { return c.id; }));
+    } else {
+      rows = campaignRows(key.slice(2));
+    }
+    seriesCache[key] = rows;
+    return rows;
+  }
+
+  // Dernière ligne dont t <= cible (recherche dichotomique) ; null si aucune.
+  function valueAt(rows, t) {
+    if (rows.length === 0 || rows[0][IDX.t] > t) return null;
+    var lo = 0, hi = rows.length - 1;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (rows[mid][IDX.t] <= t) lo = mid; else hi = mid - 1;
+    }
+    return rows[lo];
+  }
+
+  function derive(abs) {
+    var deliv = abs.send - abs.hb - abs.sb;
+    return {
+      deliv: deliv,
+      open: deliv > 0 ? abs.open_u / deliv : null,
+      click: deliv > 0 ? abs.click_u / deliv : null,
+      ctor: abs.open_u > 0 ? abs.click_u / abs.open_u : null,
+      hb: abs.send > 0 ? abs.hb / abs.send : null,
+      sb: abs.send > 0 ? abs.sb / abs.send : null
+    };
+  }
+
+  function absFromRow(row) {
+    return {
+      send: rowVal(row, 'send'), open_u: rowVal(row, 'open_u'), open_t: rowVal(row, 'open_t'),
+      click_u: rowVal(row, 'click_u'), click_t: rowVal(row, 'click_t'),
+      hb: rowVal(row, 'hb'), sb: rowVal(row, 'sb'), unsub: rowVal(row, 'unsub')
+    };
+  }
+
+  // Variation des compteurs entre t0 et t1.
+  function metricsBetween(rows, t0, t1) {
+    var v1 = valueAt(rows, t1);
+    if (!v1) return null;
+    var v0 = valueAt(rows, t0);
+    var partial = false;
+    if (!v0) { v0 = rows[0]; partial = true; }
+    var a1 = absFromRow(v1), a0 = absFromRow(v0);
+    var abs = {};
+    Object.keys(a1).forEach(function (k) { abs[k] = a1[k] - a0[k]; });
+    // Résolution réduite sur l'historique ancien (bornes trop éloignées des relevés)
+    // ou compteurs en baisse (contacts/campagnes supprimés côté ActiveCampaign).
+    var span = t1 - t0;
+    var imprecise = (t1 - v1[IDX.t] > span / 2) || (!partial && t0 - v0[IDX.t] > span / 2) ||
+      Object.keys(abs).some(function (k) { return abs[k] < 0; });
+    return { t0: t0, t1: t1, abs: abs, rate: derive(abs), partial: partial, imprecise: imprecise };
+  }
+
+  function buildBuckets(rows, periodSec, maxCount) {
+    if (rows.length < 2) return [];
+    var tEnd = rows[rows.length - 1][IDX.t];
+    var tFirst = rows[0][IDX.t];
+    var buckets = [];
+    for (var k = 0; buckets.length < maxCount; k++) {
+      var t1 = tEnd - k * periodSec;
+      var t0 = t1 - periodSec;
+      if (t1 <= tFirst) break;
+      var m = metricsBetween(rows, t0, t1);
+      if (!m) break;
+      buckets.push(m);
+      if (m.partial) break; // au-delà, tout est antérieur au suivi
+    }
+    buckets.reverse();
+    return buckets;
+  }
+
+  // ---------- Petites fabriques DOM ----------
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ---------- Info-bulle ----------
+  var tooltip = $('tooltip');
+  function showTooltip(x, y, title, lines) {
+    tooltip.textContent = '';
+    var t = el('div', 'tt-title', title);
+    tooltip.appendChild(t);
+    lines.forEach(function (ln) {
+      var row = el('div', 'tt-row');
+      var key = el('span', 'tt-key');
+      key.style.background = ln.color || 'transparent';
+      row.appendChild(key);
+      row.appendChild(el('span', 'tt-val', ln.value));
+      row.appendChild(el('span', 'tt-name', ln.name));
+      tooltip.appendChild(row);
+    });
+    tooltip.style.display = 'block';
+    var rect = tooltip.getBoundingClientRect();
+    var px = Math.min(x + 14, window.innerWidth - rect.width - 8);
+    var py = Math.min(y + 14, window.innerHeight - rect.height - 8);
+    tooltip.style.left = Math.max(4, px) + 'px';
+    tooltip.style.top = Math.max(4, py) + 'px';
+  }
+  function hideTooltip() { tooltip.style.display = 'none'; }
+
+  // ---------- Graphiques ----------
+  function niceTicks(maxVal, isPct) {
+    var steps = isPct
+      ? [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5]
+      : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000];
+    var target = maxVal / 3.5;
+    var step = steps[steps.length - 1];
+    for (var i = 0; i < steps.length; i++) if (steps[i] >= target) { step = steps[i]; break; }
+    var top = Math.ceil(maxVal / step) * step;
+    var ticks = [];
+    for (var v = 0; v <= top + 1e-9; v += step) ticks.push(v);
+    return { top: top || step, ticks: ticks };
+  }
+
+  function bucketTitle(b, periodHours) {
+    var fmt = periodHours < 24 ? tsDayTime : tsDayTime;
+    var flags = (b.partial ? ' °' : '') + (b.imprecise ? ' ≈' : '');
+    return 'Du ' + fmt(b.t0) + ' au ' + fmt(b.t1) + flags;
+  }
+
+  function xLabelFor(b, periodHours) {
+    return periodHours >= 24 ? tsDay(b.t1) : tsDayTime(b.t1);
+  }
+
+  // Graphique en lignes multi-séries (une valeur par période).
+  function lineChart(container, buckets, seriesDefs, opts) {
+    container.textContent = '';
+    var width = container.clientWidth || 800;
+    var height = opts.height || 220;
+    var m = { l: 46, r: 128, t: 10, b: 24 };
+    if (width < 560) m.r = 18;
+    var pw = width - m.l - m.r, ph = height - m.t - m.b;
+
+    var svg = svgEl('svg', { width: width, height: height, viewBox: '0 0 ' + width + ' ' + height, role: 'img' });
+    svg.setAttribute('aria-label', opts.ariaLabel || '');
+
+    var maxVal = 0;
+    seriesDefs.forEach(function (s) {
+      buckets.forEach(function (b) {
+        var v = s.value(b);
+        if (v !== null && isFinite(v) && v > maxVal) maxVal = v;
+      });
+    });
+    if (maxVal === 0) maxVal = opts.isPct ? 0.01 : 1;
+    var scale = niceTicks(maxVal * 1.08, opts.isPct);
+    var yOf = function (v) { return m.t + ph - (v / scale.top) * ph; };
+    var n = buckets.length;
+    var xOf = function (i) { return n === 1 ? m.l + pw / 2 : m.l + (i / (n - 1)) * pw; };
+
+    // Grille + axe Y
+    scale.ticks.forEach(function (v) {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: m.l + pw, y1: yOf(v), y2: yOf(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }));
+      var lbl = svgEl('text', { x: m.l - 7, y: yOf(v) + 3.5, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 11, style: 'font-variant-numeric: tabular-nums' });
+      lbl.textContent = opts.isPct ? fmtPct(v, v * 100 < 1 && v > 0 ? 1 : 0) : fmtInt(v);
+      svg.appendChild(lbl);
+    });
+
+    // Étiquettes X (une sur k pour éviter les collisions ; format horaire plus large)
+    var xLabelW = state.periodHours < 24 ? 88 : 60;
+    var maxLabels = Math.max(3, Math.floor(pw / xLabelW));
+    var every = Math.ceil(n / maxLabels);
+    buckets.forEach(function (b, i) {
+      if ((n - 1 - i) % every !== 0) return;
+      var lbl = svgEl('text', { x: xOf(i), y: height - 7, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11 });
+      lbl.textContent = xLabelFor(b, state.periodHours);
+      svg.appendChild(lbl);
+    });
+
+    // Lignes + marqueurs de fin
+    var endLabels = [];
+    seriesDefs.forEach(function (s) {
+      var d = '', pen = false, lastPt = null;
+      buckets.forEach(function (b, i) {
+        var v = s.value(b);
+        if (v === null || !isFinite(v)) { pen = false; return; }
+        var x = xOf(i), y = yOf(v);
+        d += (pen ? ' L ' : ' M ') + x.toFixed(1) + ' ' + y.toFixed(1);
+        pen = true;
+        lastPt = { x: x, y: y, v: v };
+      });
+      if (d) svg.appendChild(svgEl('path', { d: d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      if (lastPt) {
+        svg.appendChild(svgEl('circle', { cx: lastPt.x, cy: lastPt.y, r: 4, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2 }));
+        endLabels.push({ s: s, pt: lastPt });
+      }
+    });
+
+    // Étiquettes directes en fin de ligne : écartées en cas de collision
+    // (passe descendante), puis ramenées dans la zone de tracé (passe montante),
+    // avec un rappel de ligne quand une étiquette a été déplacée.
+    if (m.r > 40) {
+      endLabels.sort(function (a, b) { return a.pt.y - b.pt.y; });
+      var minGap = 15;
+      var prevY = -1e9;
+      endLabels.forEach(function (e) { e.ly = prevY = Math.max(e.pt.y, prevY + minGap); });
+      var maxY = m.t + ph;
+      for (var li = endLabels.length - 1; li >= 0; li--) {
+        if (endLabels[li].ly > maxY) endLabels[li].ly = maxY;
+        maxY = endLabels[li].ly - minGap;
+      }
+      endLabels.forEach(function (e) {
+        if (Math.abs(e.ly - e.pt.y) > 7) {
+          svg.appendChild(svgEl('line', { x1: e.pt.x + 5, x2: m.l + pw + 12, y1: e.pt.y, y2: e.ly, stroke: 'var(--grid)', 'stroke-width': 1 }));
+        }
+        var txt = svgEl('text', { x: m.l + pw + 16, y: e.ly + 3.5, fill: 'var(--ink)', 'font-size': 11.5 });
+        var tv = svgEl('tspan', { 'font-weight': 650 });
+        tv.textContent = opts.isPct ? fmtPct(e.pt.v) : fmtInt(e.pt.v);
+        txt.appendChild(tv);
+        var tn = svgEl('tspan', { fill: 'var(--ink-2)' });
+        tn.textContent = ' ' + e.s.shortName;
+        txt.appendChild(tn);
+        svg.appendChild(txt);
+      });
+    }
+
+    // Réticule + survol
+    var cross = svgEl('line', { y1: m.t, y2: m.t + ph, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+    svg.appendChild(cross);
+    var overlay = svgEl('rect', { x: m.l, y: m.t, width: pw, height: ph, fill: 'transparent' });
+    overlay.style.cursor = 'crosshair';
+    function onMove(ev) {
+      var rect = svg.getBoundingClientRect();
+      var relX = ev.clientX - rect.left;
+      var i = Math.round(((relX - m.l) / (pw || 1)) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      var b = buckets[i];
+      cross.setAttribute('x1', xOf(i)); cross.setAttribute('x2', xOf(i));
+      cross.setAttribute('visibility', 'visible');
+      showTooltip(ev.clientX, ev.clientY, bucketTitle(b, state.periodHours), seriesDefs.map(function (s) {
+        return { color: s.cssColor, value: opts.isPct ? fmtPct(s.value(b)) : fmtInt(s.value(b)), name: s.name };
+      }));
+    }
+    overlay.addEventListener('pointermove', onMove);
+    overlay.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); hideTooltip(); });
+    svg.appendChild(overlay);
+
+    container.appendChild(svg);
+  }
+
+  // Graphique en barres (une valeur par période).
+  function barChart(container, buckets, opts) {
+    container.textContent = '';
+    var width = container.clientWidth || 800;
+    var height = opts.height || 190;
+    var m = { l: 52, r: 30, t: 18, b: 24 };
+    var pw = width - m.l - m.r, ph = height - m.t - m.b;
+    var svg = svgEl('svg', { width: width, height: height, viewBox: '0 0 ' + width + ' ' + height, role: 'img' });
+    svg.setAttribute('aria-label', opts.ariaLabel || '');
+
+    var vals = buckets.map(opts.value);
+    var maxVal = Math.max.apply(null, [1].concat(vals.filter(function (v) { return v !== null && isFinite(v); })));
+    var scale = niceTicks(maxVal * 1.08, false);
+    var yOf = function (v) { return m.t + ph - (v / scale.top) * ph; };
+    var n = buckets.length;
+    var band = pw / n;
+    var barW = Math.min(24, Math.max(3, band - 2));
+
+    scale.ticks.forEach(function (v) {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: m.l + pw, y1: yOf(v), y2: yOf(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }));
+      var lbl = svgEl('text', { x: m.l - 7, y: yOf(v) + 3.5, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 11, style: 'font-variant-numeric: tabular-nums' });
+      lbl.textContent = fmtInt(v);
+      svg.appendChild(lbl);
+    });
+
+    var xLabelW = state.periodHours < 24 ? 88 : 60;
+    var maxLabels = Math.max(3, Math.floor(pw / xLabelW));
+    var every = Math.ceil(n / maxLabels);
+    var maxIdx = vals.indexOf(Math.max.apply(null, vals.map(function (v) { return v === null ? -1 : v; })));
+
+    buckets.forEach(function (b, i) {
+      var v = vals[i];
+      if (v === null || !isFinite(v)) return;
+      var cx = m.l + band * i + band / 2;
+      var y = yOf(Math.max(0, v));
+      var h = Math.max(0, m.t + ph - y);
+      var r = Math.min(4, barW / 2, h);
+      var x0 = cx - barW / 2;
+      // Barre à sommet arrondi, base carrée sur l'axe.
+      var d = 'M ' + x0 + ' ' + (m.t + ph) +
+        ' L ' + x0 + ' ' + (y + r) +
+        ' Q ' + x0 + ' ' + y + ' ' + (x0 + r) + ' ' + y +
+        ' L ' + (x0 + barW - r) + ' ' + y +
+        ' Q ' + (x0 + barW) + ' ' + y + ' ' + (x0 + barW) + ' ' + (y + r) +
+        ' L ' + (x0 + barW) + ' ' + (m.t + ph) + ' Z';
+      var bar = svgEl('path', { d: d, fill: opts.color, 'fill-opacity': 0.88 });
+      var hit = svgEl('rect', { x: m.l + band * i, y: m.t, width: band, height: ph, fill: 'transparent' });
+      hit.addEventListener('pointermove', function (ev) {
+        bar.setAttribute('fill-opacity', '1');
+        showTooltip(ev.clientX, ev.clientY, bucketTitle(b, state.periodHours), [
+          { color: opts.cssColor, value: fmtInt(v), name: opts.name }
+        ].concat(opts.extraTip ? opts.extraTip(b) : []));
+      });
+      hit.addEventListener('pointerleave', function () { bar.setAttribute('fill-opacity', '0.88'); hideTooltip(); });
+      svg.appendChild(bar);
+      svg.appendChild(hit);
+
+      // Étiquettes directes sélectives : le maximum et la dernière barre.
+      if ((i === maxIdx || i === n - 1) && band > 26) {
+        var lbl = svgEl('text', { x: cx, y: y - 5, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 11, style: 'font-variant-numeric: tabular-nums' });
+        lbl.textContent = fmtInt(v);
+        svg.appendChild(lbl);
+      }
+      if ((n - 1 - i) % every === 0) {
+        var xl = svgEl('text', { x: cx, y: height - 7, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11 });
+        xl.textContent = xLabelFor(b, state.periodHours);
+        svg.appendChild(xl);
+      }
+    });
+
+    container.appendChild(svg);
+  }
+
+  function sparkline(values, color) {
+    var w = 110, h = 26;
+    var svg = svgEl('svg', { class: 'spark', width: w, height: h, viewBox: '0 0 ' + w + ' ' + h, 'aria-hidden': 'true' });
+    var vals = values.filter(function (v) { return v !== null && isFinite(v); });
+    if (vals.length < 2) return svg;
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if (max - min < 1e-9) { min -= 0.5; max += 0.5; }
+    var pts = values.map(function (v, i) {
+      if (v === null || !isFinite(v)) return null;
+      return [(i / (values.length - 1)) * (w - 8) + 3, h - 3 - ((v - min) / (max - min)) * (h - 7)];
+    });
+    var d = '', pen = false;
+    pts.forEach(function (p) {
+      if (!p) { pen = false; return; }
+      d += (pen ? ' L ' : ' M ') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+      pen = true;
+    });
+    svg.appendChild(svgEl('path', { d: d, fill: 'none', stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.7 }));
+    var last = null;
+    for (var i = pts.length - 1; i >= 0; i--) if (pts[i]) { last = pts[i]; break; }
+    if (last) svg.appendChild(svgEl('circle', { cx: last[0], cy: last[1], r: 2.6, fill: color, stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+    return svg;
+  }
+
+  // ---------- Tuiles ----------
+  function tile(opts) {
+    var t = el('div', 'tile');
+    var lbl = el('div', 'lbl');
+    if (opts.color) {
+      var dot = el('span', 'dot');
+      dot.style.background = opts.color;
+      lbl.appendChild(dot);
+    }
+    lbl.appendChild(document.createTextNode(opts.label));
+    t.appendChild(lbl);
+    t.appendChild(el('div', 'val', opts.value));
+    if (opts.sub) t.appendChild(el('div', 'sub', opts.sub));
+    if (opts.delta) {
+      var d = el('div', 'delta');
+      var cls = opts.delta.dir === 0 ? '' : ((opts.delta.dir > 0) === !opts.delta.invert ? 'up' : 'down');
+      var arrow = opts.delta.dir > 0 ? '▲ ' : opts.delta.dir < 0 ? '▼ ' : '± ';
+      var span = el('span', cls, arrow + opts.delta.text);
+      d.appendChild(span);
+      d.appendChild(document.createTextNode(' ' + opts.delta.suffix));
+      t.appendChild(d);
+    }
+    if (opts.spark) t.appendChild(sparkline(opts.spark, opts.color || 'var(--muted)'));
+    return t;
+  }
+
+  // ---------- Rendu ----------
+  function renderGlobal(rows) {
+    var box = $('globalTiles');
+    box.textContent = '';
+    var last = rows[rows.length - 1];
+    var abs = absFromRow(last);
+    var rate = derive(abs);
+    var first = rows[0];
+    $('globalSub').textContent = 'Tous les événements comptés par ActiveCampaign pour cette sélection — suivi depuis le ' +
+      tsDayTime(first[IDX.t]) + ', dernier relevé le ' + tsDayTime(last[IDX.t]) + '.';
+
+    // Mini-historique des taux cumulés (12 points répartis sur tout le suivi).
+    function sparkOf(fn) {
+      var t0 = first[IDX.t], t1 = last[IDX.t], out = [];
+      for (var i = 0; i < 12; i++) {
+        var row = valueAt(rows, t0 + ((t1 - t0) * i) / 11);
+        out.push(row ? fn(derive(absFromRow(row)), absFromRow(row)) : null);
+      }
+      return out;
+    }
+
+    box.appendChild(tile({ label: 'Envois', color: COLORS.vol, value: fmtInt(abs.send), sub: fmtInt(rate.deliv) + ' délivrés' }));
+    box.appendChild(tile({ label: 'Ouvreurs uniques', color: COLORS.open, value: fmtInt(abs.open_u), sub: fmtPct(rate.open) + ' des délivrés · ' + fmtInt(abs.open_t) + ' ouv. totales', spark: sparkOf(function (r) { return r.open; }) }));
+    box.appendChild(tile({ label: 'Cliqueurs uniques', color: COLORS.click, value: fmtInt(abs.click_u), sub: fmtPct(rate.click) + ' des délivrés · ' + fmtInt(abs.click_t) + ' clics totaux', spark: sparkOf(function (r) { return r.click; }) }));
+    box.appendChild(tile({ label: 'CTOR', color: COLORS.ctor, value: fmtPct(rate.ctor), sub: fmtInt(abs.click_u) + ' cliqueurs / ' + fmtInt(abs.open_u) + ' ouvreurs', spark: sparkOf(function (r) { return r.ctor; }) }));
+    box.appendChild(tile({ label: 'Rebonds durs', color: COLORS.hb, value: fmtInt(abs.hb), sub: fmtPct(rate.hb) + ' des envois', spark: sparkOf(function (r) { return r.hb; }) }));
+    box.appendChild(tile({ label: 'Rebonds doux', color: COLORS.sb, value: fmtInt(abs.sb), sub: fmtPct(rate.sb) + ' des envois', spark: sparkOf(function (r) { return r.sb; }) }));
+  }
+
+  function deltaOf(cur, prev, fmt, invert) {
+    if (cur === null || prev === null || !isFinite(cur) || !isFinite(prev)) return null;
+    var d = cur - prev;
+    return { dir: d > 1e-9 ? 1 : d < -1e-9 ? -1 : 0, text: fmt(d), suffix: 'vs période préc.', invert: !!invert };
+  }
+
+  function renderPeriod(rows) {
+    var box = $('periodTiles');
+    box.textContent = '';
+    var note = $('periodNote');
+    note.hidden = true;
+    var P = state.periodHours * 3600;
+    var tEnd = rows[rows.length - 1][IDX.t];
+    var cur = metricsBetween(rows, tEnd - P, tEnd);
+    var prev = metricsBetween(rows, tEnd - 2 * P, tEnd - P);
+    $('periodSub').textContent = 'Activité du ' + tsFull(tEnd - P) + ' au ' + tsFull(tEnd) +
+      ' (' + hoursLabel(state.periodHours) + ').' + (prev ? ' Comparée aux ' + hoursLabel(state.periodHours) + ' précédentes.' : '');
+
+    if (!cur) {
+      note.hidden = false;
+      note.textContent = 'Pas encore assez de relevés pour cette période.';
+      return;
+    }
+    if (cur.partial) {
+      note.hidden = false;
+      note.textContent = '° Période partielle : le suivi a commencé le ' + tsDayTime(rows[0][IDX.t]) + '.';
+    }
+    var pv = prev && !prev.partial ? prev : null;
+
+    box.appendChild(tile({
+      label: 'Envois', color: COLORS.vol, value: fmtInt(cur.abs.send), sub: fmtInt(cur.rate.deliv) + ' délivrés',
+      delta: pv ? deltaOf(cur.abs.send, pv.abs.send, fmtSigned) : null
+    }));
+    box.appendChild(tile({
+      label: 'Ouvreurs uniques', color: COLORS.open, value: fmtInt(cur.abs.open_u),
+      sub: 'Taux d’ouverture : ' + fmtPct(cur.rate.open),
+      delta: pv ? deltaOf(cur.rate.open, pv.rate.open, fmtPts) : null
+    }));
+    box.appendChild(tile({
+      label: 'Cliqueurs uniques', color: COLORS.click, value: fmtInt(cur.abs.click_u),
+      sub: 'Taux de clic : ' + fmtPct(cur.rate.click),
+      delta: pv ? deltaOf(cur.rate.click, pv.rate.click, fmtPts) : null
+    }));
+    box.appendChild(tile({
+      label: 'CTOR', color: COLORS.ctor, value: fmtPct(cur.rate.ctor),
+      sub: fmtInt(cur.abs.click_u) + ' cliqueurs / ' + fmtInt(cur.abs.open_u) + ' ouvreurs',
+      delta: pv ? deltaOf(cur.rate.ctor, pv.rate.ctor, fmtPts) : null
+    }));
+    box.appendChild(tile({
+      label: 'Rebonds durs', color: COLORS.hb, value: fmtInt(cur.abs.hb),
+      sub: fmtPct(cur.rate.hb) + ' des envois',
+      delta: pv ? deltaOf(cur.rate.hb, pv.rate.hb, fmtPts, true) : null
+    }));
+    box.appendChild(tile({
+      label: 'Rebonds doux', color: COLORS.sb, value: fmtInt(cur.abs.sb),
+      sub: fmtPct(cur.rate.sb) + ' des envois',
+      delta: pv ? deltaOf(cur.rate.sb, pv.rate.sb, fmtPts, true) : null
+    }));
+  }
+
+  function legendInto(elId, keys, isLine) {
+    var box = $(elId);
+    box.textContent = '';
+    keys.forEach(function (k) {
+      var key = el('span', 'key');
+      var swatch = el('span', isLine ? 'lk' : 'bk');
+      swatch.style.background = k.color;
+      key.appendChild(swatch);
+      key.appendChild(document.createTextNode(k.name));
+      box.appendChild(key);
+    });
+  }
+
+  function renderCharts(rows) {
+    var P = state.periodHours * 3600;
+    var chartWidth = $('ratesChart').clientWidth || 900;
+    var maxBuckets = Math.max(8, Math.floor((chartWidth - 160) / 30));
+    var buckets = buildBuckets(rows, P, maxBuckets);
+    $('chartsSub').textContent = buckets.length
+      ? 'Périodes de ' + hoursLabel(state.periodHours) + ', la plus récente à droite' +
+        (buckets[0].partial ? ' · ° période partielle' : '') + '.'
+      : '';
+
+    var ratesSeries = [
+      { name: 'Taux d’ouverture', shortName: 'ouverture', color: COLORS.open, cssColor: COLORS.open, value: function (b) { return b.rate.open; } },
+      { name: 'Taux de clic', shortName: 'clic', color: COLORS.click, cssColor: COLORS.click, value: function (b) { return b.rate.click; } },
+      { name: 'CTOR', shortName: 'CTOR', color: COLORS.ctor, cssColor: COLORS.ctor, value: function (b) { return b.rate.ctor; } }
+    ];
+    var bounceSeries = [
+      { name: 'Rebonds durs', shortName: 'durs', color: COLORS.hb, cssColor: COLORS.hb, value: function (b) { return b.rate.hb; } },
+      { name: 'Rebonds doux', shortName: 'doux', color: COLORS.sb, cssColor: COLORS.sb, value: function (b) { return b.rate.sb; } }
+    ];
+    legendInto('ratesLegend', ratesSeries, true);
+    legendInto('bounceLegend', bounceSeries, true);
+
+    if (buckets.length === 0) {
+      ['ratesChart', 'bounceChart', 'volumeChart'].forEach(function (id) {
+        var box = $(id);
+        box.textContent = '';
+        box.appendChild(el('p', 'note', 'Pas encore assez de relevés pour tracer des périodes de ' + hoursLabel(state.periodHours) + ' — revenez après quelques heures de collecte.'));
+      });
+      return;
+    }
+
+    lineChart($('ratesChart'), buckets, ratesSeries, { isPct: true, height: 230, ariaLabel: 'Taux d’ouverture, de clic et CTOR par période — les valeurs figurent dans le tableau détaillé' });
+    lineChart($('bounceChart'), buckets, bounceSeries, { isPct: true, height: 170, ariaLabel: 'Taux de rebond dur et doux par période — les valeurs figurent dans le tableau détaillé' });
+    barChart($('volumeChart'), buckets, {
+      name: 'Envois', color: COLORS.vol, cssColor: COLORS.vol, height: 190,
+      value: function (b) { return b.abs.send; },
+      extraTip: function (b) { return [{ color: 'transparent', value: fmtInt(b.rate.deliv), name: 'délivrés' }]; },
+      ariaLabel: 'Envois par période — les valeurs figurent dans le tableau détaillé'
+    });
+  }
+
+  function renderTable(rows) {
+    var card = $('tableCard');
+    card.textContent = '';
+    var P = state.periodHours * 3600;
+    var buckets = buildBuckets(rows, P, MAX_TABLE_ROWS).slice().reverse(); // récent en premier
+
+    var tableEl = el('table', 'detail');
+    var caption = el('caption', 'visually-hidden', 'Métriques par période : envois, délivrés, ouvertures, clics, CTOR, rebonds et désabonnements, en chiffres absolus et en taux.');
+    tableEl.appendChild(caption);
+    var thead = el('thead');
+    var hr = el('tr');
+    ['Période (fin)', 'Envois', 'Délivrés', 'Ouvreurs', 'Taux ouv.', 'Cliqueurs', 'Taux clic', 'CTOR', 'Reb. durs', 'Taux dur', 'Reb. doux', 'Taux doux', 'Désab.'].forEach(function (h) {
+      hr.appendChild(el('th', null, h));
+    });
+    thead.appendChild(hr);
+    tableEl.appendChild(thead);
+
+    var tbody = el('tbody');
+    buckets.forEach(function (b) {
+      var tr = el('tr');
+      var flags = (b.partial ? ' °' : '') + (b.imprecise ? ' ≈' : '');
+      tr.appendChild(el('td', null, (state.periodHours >= 24 ? tsDayTime(b.t1) : tsDayTime(b.t1)) + flags));
+      tr.appendChild(el('td', null, fmtInt(b.abs.send)));
+      tr.appendChild(el('td', null, fmtInt(b.rate.deliv)));
+      tr.appendChild(el('td', null, fmtInt(b.abs.open_u)));
+      tr.appendChild(el('td', 'rate', fmtPct(b.rate.open)));
+      tr.appendChild(el('td', null, fmtInt(b.abs.click_u)));
+      tr.appendChild(el('td', 'rate', fmtPct(b.rate.click)));
+      tr.appendChild(el('td', 'rate', fmtPct(b.rate.ctor)));
+      tr.appendChild(el('td', null, fmtInt(b.abs.hb)));
+      tr.appendChild(el('td', 'rate', fmtPct(b.rate.hb, 2)));
+      tr.appendChild(el('td', null, fmtInt(b.abs.sb)));
+      tr.appendChild(el('td', 'rate', fmtPct(b.rate.sb, 2)));
+      tr.appendChild(el('td', null, fmtInt(b.abs.unsub)));
+      tbody.appendChild(tr);
+    });
+
+    // Ligne de cumul global (tendance totale).
+    var last = rows[rows.length - 1];
+    var abs = absFromRow(last);
+    var rate = derive(abs);
+    var tr = el('tr', 'total');
+    tr.appendChild(el('td', null, 'Cumul global'));
+    tr.appendChild(el('td', null, fmtInt(abs.send)));
+    tr.appendChild(el('td', null, fmtInt(rate.deliv)));
+    tr.appendChild(el('td', null, fmtInt(abs.open_u)));
+    tr.appendChild(el('td', 'rate', fmtPct(rate.open)));
+    tr.appendChild(el('td', null, fmtInt(abs.click_u)));
+    tr.appendChild(el('td', 'rate', fmtPct(rate.click)));
+    tr.appendChild(el('td', 'rate', fmtPct(rate.ctor)));
+    tr.appendChild(el('td', null, fmtInt(abs.hb)));
+    tr.appendChild(el('td', 'rate', fmtPct(rate.hb, 2)));
+    tr.appendChild(el('td', null, fmtInt(abs.sb)));
+    tr.appendChild(el('td', 'rate', fmtPct(rate.sb, 2)));
+    tr.appendChild(el('td', null, fmtInt(abs.unsub)));
+    tbody.appendChild(tr);
+
+    tableEl.appendChild(tbody);
+    card.appendChild(tableEl);
+  }
+
+  function renderAll() {
+    var ds = state.dataset;
+    if (!ds) return;
+    var rows = seriesFor(state.emailKey);
+    if (rows.length === 0) {
+      $('app').hidden = false;
+      $('globalTiles').textContent = '';
+      $('globalSub').textContent = 'Aucune donnée pour cette sélection.';
+      return;
+    }
+    renderGlobal(rows);
+    renderPeriod(rows);
+    renderCharts(rows);
+    renderTable(rows);
+  }
+
+  // ---------- Contrôles ----------
+  function buildEmailSelect() {
+    var sel = $('emailSel');
+    sel.textContent = '';
+    var ds = state.dataset;
+    var optAll = el('option', null, 'Tous les emails suivis (agrégé)');
+    optAll.value = 'all';
+    sel.appendChild(optAll);
+    ds.automations.forEach(function (a) {
+      var emails = ds.campaigns.filter(function (c) { return c.automationId === a.id; });
+      if (emails.length === 0) return;
+      var group = document.createElement('optgroup');
+      group.label = a.name;
+      if (emails.length > 1) {
+        var optAgg = el('option', null, 'Toute l’automatisation « ' + a.name + ' » (agrégé)');
+        optAgg.value = 'a:' + a.id;
+        group.appendChild(optAgg);
+      }
+      emails.forEach(function (c) {
+        var o = el('option', null, c.name);
+        o.value = 'c:' + c.id;
+        group.appendChild(o);
+      });
+      sel.appendChild(group);
+    });
+    var orphans = ds.campaigns.filter(function (c) { return !c.automationId || !ds.automations.some(function (a) { return a.id === c.automationId; }); });
+    if (orphans.length) {
+      var g = document.createElement('optgroup');
+      g.label = 'Autres emails';
+      orphans.forEach(function (c) {
+        var o = el('option', null, c.name);
+        o.value = 'c:' + c.id;
+        g.appendChild(o);
+      });
+      sel.appendChild(g);
+    }
+    var valid = ['all'].concat(ds.automations.map(function (a) { return 'a:' + a.id; }), ds.campaigns.map(function (c) { return 'c:' + c.id; }));
+    if (valid.indexOf(state.emailKey) === -1) state.emailKey = 'all';
+    sel.value = state.emailKey;
+    sel.addEventListener('change', function () {
+      state.emailKey = sel.value;
+      persistState();
+      renderAll();
+    });
+  }
+
+  function buildPeriodSeg() {
+    var seg = $('periodSeg');
+    seg.textContent = '';
+    var custom = $('customHours');
+    var unit = $('customUnit');
+    PRESETS.forEach(function (p) {
+      var b = el('button', null, p.label);
+      b.type = 'button';
+      var isCustom = p.h === 0;
+      var active = isCustom ? state.usingCustom : (!state.usingCustom && state.periodHours === p.h);
+      b.setAttribute('aria-pressed', String(active));
+      b.addEventListener('click', function () {
+        state.usingCustom = isCustom;
+        if (isCustom) {
+          custom.classList.add('show');
+          unit.style.display = 'inline';
+          state.periodHours = Math.max(1, Math.min(720, Math.round(Number(custom.value) || 6)));
+        } else {
+          custom.classList.remove('show');
+          unit.style.display = 'none';
+          state.periodHours = p.h;
+        }
+        persistState();
+        buildPeriodSeg();
+        renderAll();
+      });
+      seg.appendChild(b);
+    });
+    if (state.usingCustom) {
+      custom.classList.add('show');
+      unit.style.display = 'inline';
+    }
+  }
+
+  $('customHours').addEventListener('change', function () {
+    var v = Math.max(1, Math.min(720, Math.round(Number(this.value) || 6)));
+    this.value = v;
+    if (state.usingCustom) {
+      state.periodHours = v;
+      persistState();
+      renderAll();
+    }
+  });
+
+  // ---------- État partagé (URL + localStorage) ----------
+  function persistState() {
+    var h = '#e=' + encodeURIComponent(state.emailKey) + '&p=' + (state.usingCustom ? 'c' + state.periodHours : state.periodHours);
+    try { history.replaceState(null, '', h); } catch (e) { /* ignoré */ }
+    try { localStorage.setItem('mac-state', JSON.stringify({ e: state.emailKey, p: state.periodHours, c: state.usingCustom })); } catch (e) { /* ignoré */ }
+  }
+  function restoreState() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('mac-state') || 'null');
+      if (saved) {
+        state.emailKey = String(saved.e || 'all');
+        state.periodHours = Math.max(1, Math.min(720, Number(saved.p) || 48));
+        state.usingCustom = !!saved.c;
+      }
+    } catch (e) { /* ignoré */ }
+    var m = location.hash.match(/e=([^&]+)/);
+    if (m) state.emailKey = decodeURIComponent(m[1]);
+    var pm = location.hash.match(/p=(c?)(\d+)/);
+    if (pm) {
+      state.periodHours = Math.max(1, Math.min(720, Number(pm[2])));
+      state.usingCustom = pm[1] === 'c';
+    }
+    if (state.usingCustom) $('customHours').value = state.periodHours;
+    else if (PRESETS.every(function (p) { return p.h !== state.periodHours; })) state.periodHours = 48;
+  }
+
+  // ---------- Thème ----------
+  function applyTheme(mode) {
+    if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode);
+    else document.documentElement.removeAttribute('data-theme');
+    $('themeBtn').textContent = 'Thème : ' + (mode === 'light' ? 'clair' : mode === 'dark' ? 'sombre' : 'auto');
+  }
+  (function initTheme() {
+    var mode = 'auto';
+    try { mode = localStorage.getItem('mac-theme') || 'auto'; } catch (e) { /* ignoré */ }
+    applyTheme(mode);
+    $('themeBtn').addEventListener('click', function () {
+      var cur = 'auto';
+      try { cur = localStorage.getItem('mac-theme') || 'auto'; } catch (e) { /* ignoré */ }
+      var next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
+      try { localStorage.setItem('mac-theme', next); } catch (e) { /* ignoré */ }
+      applyTheme(next);
+    });
+  })();
+
+  // ---------- Bannière ----------
+  function updateBanner() {
+    var b = $('banner');
+    var msgs = [];
+    if (state.dataset && state.dataset.demo) {
+      msgs.push('Données de démonstration — connectez le relevé ActiveCampaign pour voir vos vraies statistiques.');
+    }
+    if (state.dataset && !state.dataset.demo) {
+      var age = Date.now() / 1000 - state.dataset.generatedAt;
+      if (age > 3.5 * 3600) {
+        msgs.push('⚠ Dernier relevé ' + agoLabel(state.dataset.generatedAt) + ' : les données peuvent être obsolètes (vérifier le workflow GitHub Actions).');
+      }
+    }
+    b.textContent = msgs.join(' ');
+    b.classList.toggle('show', msgs.length > 0);
+  }
+
+  // ---------- Démarrage ----------
+  function boot(ds) {
+    state.dataset = ds;
+    seriesCache = {};
+    IDX = {};
+    ds.cols.forEach(function (c, i) { IDX[c] = i; });
+    $('lastUpdate').textContent = 'Dernier relevé : ' + tsDayTime(ds.generatedAt) + ' (' + agoLabel(ds.generatedAt) + ')';
+    updateBanner();
+    if (!ds.campaigns.length) {
+      $('setup').hidden = false;
+      $('setup').querySelector('h2').textContent = 'Aucun email suivi pour l’instant';
+      return;
+    }
+    restoreState();
+    $('filters').hidden = false;
+    $('app').hidden = false;
+    buildEmailSelect();
+    buildPeriodSeg();
+    renderAll();
+  }
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (state.dataset) { renderCharts(seriesFor(state.emailKey)); } }, 150);
+  });
+
+  if (window.__EMBEDDED_DATASET__) {
+    boot(window.__EMBEDDED_DATASET__);
+  } else {
+    fetch('./data/dataset.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(boot)
+      .catch(function () { $('setup').hidden = false; });
+  }
+})();
+</script>
+<!-- ARTIFACT:BODY:END -->
+</body>
+</html>

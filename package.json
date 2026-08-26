@@ -1,0 +1,17 @@
+{
+  "name": "monitoring-ac",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monitoring des emails d'automatisation ActiveCampaign : ouvertures, clics, CTOR, rebonds — en absolu et en taux, par période.",
+  "type": "module",
+  "scripts": {
+    "fetch": "node scripts/fetch-metrics.mjs",
+    "demo": "node scripts/generate-demo-data.mjs",
+    "mock-server": "node scripts/mock-ac-server.mjs",
+    "build-artifact": "node scripts/build-artifact.mjs",
+    "serve": "node scripts/serve-site.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

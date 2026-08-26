@@ -1,0 +1,16 @@
+{
+  "_doc": "Configuration du monitoring. Tous les champs sont optionnels : par défaut, tous les emails d'automatisation sont suivis.",
+
+  "_doc_campaignIds": "Liste d'IDs de campagnes (emails) à suivre. Vide = pas de filtre par ID. L'ID est visible dans l'URL du rapport de l'email dans ActiveCampaign.",
+  "campaignIds": [],
+
+  "_doc_automationIds": "Liste d'IDs d'automatisations : seuls les emails de ces automatisations sont suivis. Vide = toutes.",
+  "automationIds": [],
+
+  "_doc_automationEmailsOnly": "true = ne suivre que les emails envoyés par des automatisations (recommandé). false = suivre aussi les campagnes ponctuelles.",
+  "automationEmailsOnly": true,
+
+  "_doc_retention": "Compactage de l'historique : résolution pleine pendant `fullResolutionDays` jours, puis 1 relevé / 6 h jusqu'à `sixHourResolutionDays` jours, puis 1 relevé / 24 h.",
+  "fullResolutionDays": 21,
+  "sixHourResolutionDays": 90
+}

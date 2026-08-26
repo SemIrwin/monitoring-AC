@@ -1,0 +1,86 @@
+name: Relevé des métriques AC
+
+on:
+  schedule:
+    # Toutes les heures, à h+23 (éviter la minute 0, surchargée chez GitHub).
+    - cron: "23 * * * *"
+  workflow_dispatch: {}
+
+# Un seul relevé à la fois ; un relevé en cours n'est jamais annulé.
+concurrency:
+  group: monitoring-ac
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # commit des relevés dans le dépôt
+  pages: write      # déploiement GitHub Pages
+  id-token: write   # jeton OIDC exigé par deploy-pages
+
+jobs:
+  releve:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout (branche par défaut)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Relevé ActiveCampaign
+        env:
+          AC_API_URL: ${{ secrets.AC_API_URL }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+        run: node scripts/fetch-metrics.mjs
+
+      - name: Commit des données
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- data site/data 2>/dev/null || git add -A -- site/data
+          if git diff --cached --quiet; then
+            echo "Aucun changement à committer."
+          else
+            git commit -m "Relevé automatique des métriques"
+            # Nouvelles tentatives si un push concurrent est passé entre-temps.
+            for i in 1 2 3; do
+              git push && break
+              git pull --rebase && sleep 3
+            done
+          fi
+
+      # GitHub Pages n'est pas activable sur un dépôt privé en plan Free.
+      # On détecte : si Pages est activé (dépôt public, ou compte Pro), on publie ;
+      # sinon on saute la publication sans faire échouer le relevé.
+      - name: Pages activé ?
+        id: pages-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" --silent 2>/dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages n'est pas activé sur ce dépôt — publication sautée. Voir le README (section « Lien public »)."
+          fi
+
+      - name: Configuration Pages
+        if: steps.pages-check.outputs.enabled == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Empaquetage du site
+        if: steps.pages-check.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Déploiement GitHub Pages
+        if: steps.pages-check.outputs.enabled == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v5
