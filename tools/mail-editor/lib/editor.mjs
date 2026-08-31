@@ -118,9 +118,15 @@ function frameKey(frame) {
   }
 }
 
-/** Extrait tous les blocs éditables de la page (tous frames confondus). */
+/**
+ * Extrait tous les blocs éditables de la page (tous frames confondus).
+ * Plusieurs frames peuvent partager la même URL (srcdoc, about:blank) :
+ * `frameSeq` numérote les frames de même clé pour que chaque blockId reste
+ * unique — sinon deux blocs distincts fusionneraient dans l'UI de revue.
+ */
 export async function extractBlocks(page) {
   const blocks = [];
+  const seqByKey = new Map();
   for (const frame of page.frames()) {
     let found;
     try {
@@ -129,8 +135,10 @@ export async function extractBlocks(page) {
       continue; // frame cross-origin ou détaché : ignoré
     }
     const fk = frameKey(frame);
+    const frameSeq = seqByKey.get(fk) ?? 0;
+    seqByKey.set(fk, frameSeq + 1);
     for (const b of found) {
-      blocks.push({ ...b, frame: fk, blockId: `${b.type}:${fk}#${b.domIndex}` });
+      blocks.push({ ...b, frame: fk, frameSeq, blockId: `${b.type}:${fk}@${frameSeq}#${b.domIndex}` });
     }
   }
   return blocks;
@@ -143,6 +151,12 @@ export async function extractBlocks(page) {
 export async function applyBlock(page, block, updatedTexts) {
   const frames = page.frames().filter((f) => frameKey(f) === block.frame);
   if (frames.length === 0) return { ok: false, reason: `frame ${block.frame} introuvable` };
+  // Essayer d'abord le frame de même rang qu'à l'extraction ; les autres
+  // servent de repli (la vérification des textes attendus tranche de toute
+  // façon : un mauvais frame est rejeté avant toute écriture).
+  if (Number.isInteger(block.frameSeq) && block.frameSeq > 0 && block.frameSeq < frames.length) {
+    frames.unshift(frames.splice(block.frameSeq, 1)[0]);
+  }
   let last = { ok: false, reason: 'aucun frame ne correspond' };
   for (const frame of frames) {
     try {

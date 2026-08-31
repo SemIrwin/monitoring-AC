@@ -32,12 +32,17 @@ test('extraction, remplacement et préservation du formatage', async () => {
 
   const blocks = await extractBlocks(page);
 
-  // 3 blocs riches de la page (le span imbriqué ne compte pas), 1 dans
-  // l'iframe, 1 champ objet.
+  // 3 blocs riches de la page (le span imbriqué ne compte pas), 1 par
+  // iframe srcdoc (2), 1 champ objet.
   const rich = blocks.filter((b) => b.type === 'rich');
   const fields = blocks.filter((b) => b.type === 'field');
-  assert.equal(rich.length, 4, `blocs riches attendus : 4, obtenus : ${rich.length}`);
+  assert.equal(rich.length, 5, `blocs riches attendus : 5, obtenus : ${rich.length}`);
   assert.equal(fields.length, 1);
+
+  // Deux iframes srcdoc partagent la même « URL » de frame : chaque blockId
+  // doit malgré tout être unique, sinon l'UI de revue fusionne leurs décisions.
+  assert.equal(new Set(blocks.map((b) => b.blockId)).size, blocks.length,
+    `blockIds non uniques : ${JSON.stringify(blocks.map((b) => b.blockId))}`);
   assert.match(concatText(fields[0].nodes), /live VIP en direct/);
 
   const blockA = rich.find((b) => concatText(b.nodes).includes('de lancement'));
@@ -85,6 +90,21 @@ test('extraction, remplacement et préservation du formatage', async () => {
   assert.equal(resI.ok, true, resI.reason);
   const htmlI = await page.frameLocator('#inner').locator('[contenteditable]').innerHTML();
   assert.match(htmlI, /on est <b>avec vous<\/b>/);
+
+  // — Deuxième iframe srcdoc : l'application atteint le BON frame malgré la
+  // clé de frame partagée.
+  const blockIframe2 = rich.find((b) => concatText(b.nodes).includes('Deuxième iframe'));
+  assert.ok(blockIframe2, 'bloc de la deuxième iframe non trouvé');
+  const textI2 = concatText(blockIframe2.nodes);
+  const occI2 = findOccurrences(textI2);
+  assert.equal(occI2.length, 1);
+  const updatedI2 = applyEdits(blockIframe2.nodes, [{ ...occI2[0].proposal }]);
+  const resI2 = await applyBlock(page, blockIframe2, updatedI2);
+  assert.equal(resI2.ok, true, resI2.reason);
+  const htmlI2 = await page.frameLocator('#inner2').locator('[contenteditable]').innerHTML();
+  assert.match(htmlI2, /le rendez-vous continue/);
+  // Et la première iframe n'a pas été touchée par cette 2ᵉ application.
+  assert.match(await page.frameLocator('#inner').locator('[contenteditable]').innerHTML(), /on est <b>avec vous<\/b>/);
 
   // — Champ objet : remplacement complet de la valeur + événement input.
   const subject = fields[0];

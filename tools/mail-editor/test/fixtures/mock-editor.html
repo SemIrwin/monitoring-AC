@@ -21,6 +21,9 @@
 
   <iframe id="inner" srcdoc='<div contenteditable="true"><p>Dans l&#39;iframe : on est <b>en direct</b> !</p></div>'></iframe>
 
+  <!-- Deuxième iframe srcdoc : même « URL » de frame, les blockId doivent rester uniques. -->
+  <iframe id="inner2" srcdoc='<div contenteditable="true"><p>Deuxième iframe : le live continue.</p></div>'></iframe>
+
   <script>
     window.__inputEvents = [];
     document.addEventListener('input', (e) => window.__inputEvents.push(e.target.id || e.target.name), true);

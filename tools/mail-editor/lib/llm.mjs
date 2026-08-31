@@ -61,18 +61,25 @@ export async function proposeWithLlm({ apiKey, model, items, log = console.error
   const out = new Map();
   for (const row of parsed) {
     if (!row || typeof row.id !== 'string') continue;
-    if (row.action === 'replace') {
-      if (typeof row.before !== 'string' || typeof row.after !== 'string' || !row.before) {
-        log(`  [llm] réponse incomplète pour ${row.id}, ignorée`);
-        continue;
-      }
-      const bad = violatesLexicon(row.after);
-      if (bad.length > 0) {
-        log(`  [llm] proposition pour ${row.id} rejetée (termes interdits : ${bad.join(', ')})`);
-        continue;
-      }
+    const action = String(row.action || '').trim().toLowerCase();
+    if (action === 'keep') {
+      out.set(row.id, { action: 'keep', note: typeof row.note === 'string' ? row.note : '' });
+      continue;
     }
-    out.set(row.id, { action: row.action === 'keep' ? 'keep' : 'replace', before: row.before, after: row.after, note: row.note || '' });
+    if (action !== 'replace') {
+      log(`  [llm] action inconnue « ${row.action} » pour ${row.id}, ignorée`);
+      continue;
+    }
+    if (typeof row.before !== 'string' || typeof row.after !== 'string' || !row.before) {
+      log(`  [llm] réponse incomplète pour ${row.id}, ignorée`);
+      continue;
+    }
+    const bad = violatesLexicon(row.after);
+    if (bad.length > 0) {
+      log(`  [llm] proposition pour ${row.id} rejetée (termes interdits : ${bad.join(', ')})`);
+      continue;
+    }
+    out.set(row.id, { action: 'replace', before: row.before, after: row.after, note: typeof row.note === 'string' ? row.note : '' });
   }
   return out;
 }

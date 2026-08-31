@@ -166,7 +166,7 @@ async function cmdPropose() {
         const occ = {
           id, ...o,
           source: 'heuristic',
-          note: '',
+          note: o.note || '',
           approved: o.confidence === 'high' && !o.needsLlm,
         };
         if (o.needsLlm || o.confidence === 'low') {
@@ -220,6 +220,13 @@ async function cmdPropose() {
           occ.note = `Fragment LLM introuvable dans le bloc (« ${r.before.slice(0, 60)} ») — heuristique conservée.`;
           continue;
         }
+        // Le fragment relocalisé doit COUVRIR l'occurrence : sinon le mot
+        // visé survivrait au remplacement (ex. before = un bout de phrase
+        // voisin). Dans ce cas, heuristique conservée.
+        if (!(loc.start <= occ.start && loc.end >= occ.end)) {
+          occ.note = `Fragment LLM (« ${r.before.slice(0, 60)} ») ne couvre pas « ${occ.matched} » — heuristique conservée.`;
+          continue;
+        }
         occ.proposal = { start: loc.start, end: loc.end, replacement: r.after };
         occ.source = 'llm';
         occ.note = r.note || '';
@@ -229,6 +236,24 @@ async function cmdPropose() {
     }
   } else if (!opts['no-llm'] && llmItems.length > 0) {
     console.log('ANTHROPIC_API_KEY absent : heuristiques seules. Les cas « direct » et accords fins sont à revoir dans l\'UI.');
+  }
+
+  // Chevauchements : si le LLM a élargi un fragment jusqu'à recouvrir une
+  // occurrence voisine (« live » et « direct » dans la même phrase), on ne
+  // garde approuvée que la première proposition — l'autre est à départager
+  // dans l'UI, sinon `apply` devrait en jeter une arbitrairement.
+  for (const email of emails) {
+    for (const block of email.blocks) {
+      const sorted = [...block.occurrences].sort((a, b) => a.proposal.start - b.proposal.start);
+      let prevEnd = -1;
+      for (const occ of sorted) {
+        if (occ.proposal.start < prevEnd && occ.approved) {
+          occ.approved = false;
+          occ.note = `⚠ chevauche la proposition précédente (même passage de phrase) — départager à la main. ${occ.note}`;
+        }
+        prevEnd = Math.max(prevEnd, occ.proposal.end);
+      }
+    }
   }
 
   // Filet de sécurité : aucune proposition ne doit réintroduire live/direct/rediffusion.
@@ -280,9 +305,25 @@ async function cmdApply() {
     process.exit(1);
   }
 
+  if (opts.email === true) {
+    console.error('apply : --email attend un id d\'email (ex. --email 123).');
+    process.exit(1);
+  }
+
+  // Les décisions doivent avoir été prises sur CES propositions : des ids
+  // positionnels (o0, o1…) issus d'une autre extraction se rebrancheraient
+  // silencieusement sur d'autres occurrences.
+  if (approved.proposalsCreatedAt && proposals.createdAt && approved.proposalsCreatedAt !== proposals.createdAt) {
+    console.error('Les décisions (work/approved.json) ont été prises sur une AUTRE version des propositions.');
+    console.error('Refaire la validation : node cli.mjs review');
+    process.exit(1);
+  }
+
   const decisions = approved.decisions || {};
   const emailFilter = typeof opts.email === 'string' ? String(opts.email) : null;
   const plan = [];
+  let approvedCount = 0;
+  let skipped = 0;
   for (const email of proposals.emails) {
     if (emailFilter && String(email.id) !== emailFilter) continue;
     const blockEdits = [];
@@ -291,26 +332,54 @@ async function cmdApply() {
       for (const occ of block.occurrences) {
         const d = decisions[occ.id];
         if (!d || !d.approved) continue;
+        approvedCount++;
+        // Empreinte : le fragment que l'utilisateur a validé doit encore
+        // correspondre au texte visé par la proposition.
+        const current = block.text.slice(occ.proposal.start, occ.proposal.end);
+        if (typeof d.before === 'string' && d.before !== current) {
+          console.error(`  ⚠ ${occ.id} : le passage validé (« ${d.before} ») ne correspond plus (« ${current} ») — occurrence sautée, revalider dans l'UI.`);
+          skipped++;
+          continue;
+        }
         const replacement = typeof d.replacement === 'string' ? d.replacement : occ.proposal.replacement;
         edits.push({ start: occ.proposal.start, end: occ.proposal.end, replacement, occId: occ.id });
       }
       if (edits.length === 0) continue;
+      // Chevauchements résiduels : on garde la première proposition et on
+      // saute les suivantes (au lieu de perdre le bloc entier).
+      edits.sort((a, b) => a.start - b.start);
+      const kept = [];
+      let prevEnd = -1;
+      for (const e of edits) {
+        if (e.start < prevEnd) {
+          console.error(`  ⚠ ${e.occId} : chevauche un remplacement précédent — occurrence sautée.`);
+          skipped++;
+          continue;
+        }
+        kept.push(e);
+        prevEnd = e.end;
+      }
+      if (kept.length === 0) continue;
       let updatedTexts;
       try {
-        updatedTexts = applyEdits(block.nodes, edits);
+        updatedTexts = applyEdits(block.nodes, kept);
       } catch (e) {
         console.error(`  ⚠ ${email.id}/${block.blockId} : édits invalides (${e.message}) — bloc sauté.`);
+        skipped += kept.length;
         continue;
       }
-      blockEdits.push({ block, edits, updatedTexts });
+      blockEdits.push({ block, edits: kept, updatedTexts });
     }
     if (blockEdits.length > 0) plan.push({ email, blockEdits });
   }
 
   if (plan.length === 0) {
-    console.log('Rien à appliquer : aucune occurrence approuvée.');
+    console.log(approvedCount === 0
+      ? 'Rien à appliquer : aucune occurrence approuvée.'
+      : `Rien à appliquer : les ${approvedCount} occurrence(s) approuvée(s) ont toutes été sautées (voir les avertissements ci-dessus).`);
     return;
   }
+  if (skipped > 0) console.log(`⚠ ${skipped} occurrence(s) approuvée(s) sautée(s) — voir les avertissements ci-dessus.`);
 
   console.log(`À appliquer : ${plan.length} email(s), ${plan.reduce((n, p) => n + p.blockEdits.reduce((m, b) => m + b.edits.length, 0), 0)} remplacement(s).`);
   for (const { email, blockEdits } of plan) {

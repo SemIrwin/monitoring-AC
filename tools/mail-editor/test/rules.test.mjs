@@ -71,4 +71,36 @@ test('violatesLexicon détecte les termes interdits, pas leurs dérivés autoris
   assert.ok(violatesLexicon('le replay arrive').includes('replay'));
   assert.ok(violatesLexicon('un live').includes('live'));
   assert.deepEqual(violatesLexicon('délivré'), []);
+  assert.deepEqual(violatesLexicon('directement'), []);
+  // « direct » nu, espace insécable, espaces doubles : tous bloqués.
+  assert.ok(violatesLexicon('le Direct commence').includes('direct'));
+  assert.ok(violatesLexicon('en direct').length > 0);
+  assert.ok(violatesLexicon('en  direct').length > 0);
+});
+
+test('mot accentué avant « live vip » : pas d\'accord volé sur la fin du mot', () => {
+  const text = 'Rejoins notre clientèle live VIP ce soir.';
+  const [occ] = findOccurrences(text);
+  assert.equal(occ.kind, 'live_vip');
+  assert.equal(text.slice(occ.proposal.start, occ.proposal.end), 'live');
+  assert.equal(occ.proposal.replacement, 'session');
+
+  const text2 = 'Le modèle live vip est prêt.';
+  const [occ2] = findOccurrences(text2);
+  assert.equal(text2.slice(occ2.proposal.start, occ2.proposal.end), 'live');
+});
+
+test('live dans une URL ou un mot composé : signalé mais proposition no-op', () => {
+  const occ = findOccurrences('Va sur https://ex.com/live/vip et regarde le live-stream.');
+  assert.equal(occ.length, 2);
+  for (const o of occ) {
+    assert.equal(o.confidence, 'low');
+    assert.equal(o.proposal.replacement, o.matched);
+    assert.match(o.note, /URL ou mot composé/);
+  }
+});
+
+test('En direct en début de phrase : casse reportée sur le remplacement', () => {
+  const [occ] = findOccurrences('En direct de Paris !');
+  assert.equal(occ.proposal.replacement, 'Avec vous');
 });

@@ -22,7 +22,7 @@ import { sentenceAround } from './textmap.mjs';
 
 export const FORBIDDEN_IN_REPLACEMENT = [
   'rediffusion', 'replay', 'rediff', 'enregistré', 'enregistrement',
-  'en direct', 'live',
+  'en direct', 'direct', 'directe', 'live',
 ];
 
 // Lexique autorisé pour remplacer « (en) direct » : moment ensemble, ambigu.
@@ -31,9 +31,26 @@ export const DIRECT_LEXICON = [
   'rendez-vous', 'moment ensemble', 'grand moment',
 ];
 
-const RE_LIVE = /\blive\b/gi;
-// « direct » substantif/adjectif ; \b exclut déjà directement/directeur/direction.
-const RE_DIRECT = /\bdirect(?:e|s|es)?\b/gi;
+// \b est ASCII et voit une frontière entre « è » et « l » (clientèle, modèle…) :
+// on utilise des lookarounds Unicode pour de vraies frontières de mots français.
+const RE_LIVE = /(?<![\p{L}])live(?![\p{L}])/giu;
+// « direct » substantif/adjectif ; les lookarounds excluent directement/directeur/direction.
+const RE_DIRECT = /(?<![\p{L}])direct(?:e|s|es)?(?![\p{L}])/giu;
+
+/**
+ * Le mot fait-il partie d'une URL ou d'un mot composé (« live-stream »,
+ * « exemple.com/live/vip ») ? Dans ce cas le remplacer casserait un lien ou
+ * un nom : on le signale mais on ne propose rien par défaut.
+ */
+function inUrlOrCompound(text, start, end) {
+  if (text[start - 1] === '-' || text[end] === '-') return true;
+  let ts = start;
+  while (ts > 0 && !/\s/.test(text[ts - 1])) ts--;
+  let te = end;
+  while (te < text.length && !/\s/.test(text[te])) te++;
+  const token = text.slice(ts, te);
+  return /[/@]|:\/\/|www\.|\.[a-z]{2,}(\/|$)/i.test(token);
+}
 
 /** Applique au remplacement la casse du mot d'origine (Live → Session). */
 export function matchCase(original, replacement) {
@@ -43,10 +60,13 @@ export function matchCase(original, replacement) {
 }
 
 // Accords masculin (live) → féminin (session) pour le déterminant qui précède.
+// Lookbehind Unicode obligatoire : avec \b, « clientèle live » verrait un
+// déterminant « le » à la fin de « clientèle ».
 const FEM_DETERMINERS = [
-  [/\b(le)\s+$/i, 'la '], [/\b(un)\s+$/i, 'une '], [/\b(ce)\s+$/i, 'cette '],
-  [/\b(du)\s+$/i, 'de la '], [/\b(au)\s+$/i, 'à la '], [/\b(mon)\s+$/i, 'ma '],
-  [/\b(ton)\s+$/i, 'ta '], [/\b(son)\s+$/i, 'sa '],
+  [/(?<![\p{L}])(le)\s+$/iu, 'la '], [/(?<![\p{L}])(un)\s+$/iu, 'une '],
+  [/(?<![\p{L}])(ce)\s+$/iu, 'cette '], [/(?<![\p{L}])(du)\s+$/iu, 'de la '],
+  [/(?<![\p{L}])(au)\s+$/iu, 'à la '], [/(?<![\p{L}])(mon)\s+$/iu, 'ma '],
+  [/(?<![\p{L}])(ton)\s+$/iu, 'ta '], [/(?<![\p{L}])(son)\s+$/iu, 'sa '],
 ];
 
 /**
@@ -64,6 +84,15 @@ export function findOccurrences(text) {
     const after = text.slice(end);
     const vip = after.match(/^(\s+|[\s-]*)vip\b/i);
     const sentence = sentenceAround(text, start, end);
+    if (inUrlOrCompound(text, start, end)) {
+      occ.push({
+        kind: 'live', start, end, matched: m[0],
+        sentence: sentence.text, confidence: 'low', needsLlm: false,
+        note: 'URL ou mot composé : remplacer casserait un lien/un nom — à traiter à la main.',
+        proposal: { start, end, replacement: m[0] },
+      });
+      continue;
+    }
     if (vip) {
       // « live vip » → « session vip » ; accord du déterminant qui précède.
       const before = text.slice(Math.max(0, start - 12), start);
@@ -97,7 +126,16 @@ export function findOccurrences(text) {
     const end = start + m[0].length;
     const before = text.slice(Math.max(0, start - 40), start);
     const sentence = sentenceAround(text, start, end);
-    const enDirect = /\ben\s+$/i.test(before);
+    if (inUrlOrCompound(text, start, end)) {
+      occ.push({
+        kind: 'direct', start, end, matched: m[0],
+        sentence: sentence.text, confidence: 'low', needsLlm: false,
+        note: 'URL ou mot composé : remplacer casserait un lien/un nom — à traiter à la main.',
+        proposal: { start, end, replacement: m[0] },
+      });
+      continue;
+    }
+    const enDirect = /(?<![\p{L}])en\s+$/iu.test(before);
     // « réponse directe », « accès direct », « virement direct »… : probable
     // faux positif quand « direct » suit un nom sans « en » — confiance basse,
     // proposition par défaut « ne pas toucher », le LLM/la revue tranchent.
@@ -107,8 +145,8 @@ export function findOccurrences(text) {
       // « en direct » entier → « en live » est interdit ; heuristique simple :
       // « je suis en direct » → « le show est lancé » demande le LLM. Par
       // défaut : remplacer « en direct » par « avec vous » (moment partagé).
-      const pStart = start - (before.length - before.search(/\ben\s+$/i));
-      proposal = { start: pStart, end, replacement: 'avec vous' };
+      const pStart = start - (before.length - before.search(/(?<![\p{L}])en\s+$/iu));
+      proposal = { start: pStart, end, replacement: matchCase(text.slice(pStart, end), 'avec vous') };
     } else {
       proposal = { start, end, replacement: m[0] }; // no-op tant que non confirmé
     }
@@ -122,10 +160,14 @@ export function findOccurrences(text) {
   return occ;
 }
 
-/** Vérifie qu'un remplacement ne réintroduit pas un terme interdit. */
+/**
+ * Vérifie qu'un remplacement ne réintroduit pas un terme interdit.
+ * Les espaces sont normalisés (insécables, doubles) avant comparaison et les
+ * expressions multi-mots tolèrent n'importe quel blanc entre les mots.
+ */
 export function violatesLexicon(replacement) {
   return FORBIDDEN_IN_REPLACEMENT.filter((w) => {
-    const esc = w.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const esc = w.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/ /g, '\\s+');
     return new RegExp(`(?<![\\p{L}])${esc}(?![\\p{L}])`, 'iu').test(replacement);
   });
 }
