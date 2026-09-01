@@ -137,6 +137,14 @@ node scripts/fetch-metrics.mjs
 node scripts/build-artifact.mjs       # → dist/artifact.html
 ```
 
+## Outil compagnon : réécriture des mentions « live / direct »
+
+[`tools/mail-editor/`](tools/mail-editor/) contient un outil semi-automatique
+(Playwright + LLM + interface de revue) pour remplacer les mentions de
+« live » et « direct » dans tous les emails d'une automatisation, avec
+validation humaine de chaque remplacement et formatage préservé. Voir son
+[README](tools/mail-editor/README.md).
+
 ## Dépannage
 
 | Symptôme | Cause probable |
