@@ -21,7 +21,19 @@ node scripts/generate-demo-data.mjs   # dataset de démo → site/data/
 node scripts/serve-site.mjs           # préviz locale http://127.0.0.1:8930
 node scripts/mock-ac-server.mjs       # fausse API AC (port 8931, Api-Token: test)
 node scripts/build-artifact.mjs       # dashboard autonome → dist/artifact.html
+
+# Outil séparé (a ses propres dépendances npm, voir tools/mail-editor/README.md)
+cd tools/mail-editor && npm test      # réécriture live/direct : extract → propose → review → apply
 ```
+
+## tools/mail-editor (réécriture live/direct)
+
+- Pipeline en étapes rejouables via `work/*.json` ; `work/` est **ignoré par
+  git** (session navigateur AC = cookies, ne jamais le committer).
+- Le formatage est préservé en ne touchant qu'aux nœuds texte du DOM (jamais
+  de HTML régénéré) ; remplacements multi-nœuds découpés mot à mot (LCS).
+- Sélecteurs volontairement génériques (`[contenteditable]` + iframes) :
+  non validés contre l'éditeur AC réel, mode assisté par défaut.
 
 ## Pièges connus
 
