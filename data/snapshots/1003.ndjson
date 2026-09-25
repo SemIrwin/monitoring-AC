@@ -7,7 +7,6 @@
 {"t":1788497063,"send":2017,"open_u":890,"open_t":1256,"click_u":137,"click_t":210,"hb":1,"sb":2,"unsub":1,"ulc":150}
 {"t":1788515073,"send":2017,"open_u":903,"open_t":1285,"click_u":140,"click_t":219,"hb":1,"sb":2,"unsub":1,"ulc":153}
 {"t":1788531911,"send":2017,"open_u":908,"open_t":1313,"click_u":142,"click_t":223,"hb":1,"sb":2,"unsub":2,"ulc":155}
-{"t":1788546567,"send":2017,"open_u":918,"open_t":1335,"click_u":145,"click_t":232,"hb":1,"sb":2,"unsub":2,"ulc":158}
 {"t":1788557673,"send":2017,"open_u":924,"open_t":1354,"click_u":147,"click_t":236,"hb":1,"sb":2,"unsub":2,"ulc":160}
 {"t":1788567107,"send":2017,"open_u":924,"open_t":1356,"click_u":147,"click_t":236,"hb":1,"sb":2,"unsub":2,"ulc":160}
 {"t":1788583222,"send":2017,"open_u":929,"open_t":1362,"click_u":147,"click_t":236,"hb":1,"sb":2,"unsub":2,"ulc":160}
@@ -131,3 +130,4 @@
 {"t":1790323096,"send":2017,"open_u":1022,"open_t":1739,"click_u":178,"click_t":286,"hb":1,"sb":1,"unsub":2,"ulc":192}
 {"t":1790344597,"send":2017,"open_u":1022,"open_t":1740,"click_u":178,"click_t":286,"hb":1,"sb":1,"unsub":2,"ulc":192}
 {"t":1790361843,"send":2017,"open_u":1022,"open_t":1741,"click_u":178,"click_t":286,"hb":1,"sb":1,"unsub":2,"ulc":192}
+{"t":1790375452,"send":2017,"open_u":1022,"open_t":1741,"click_u":178,"click_t":286,"hb":1,"sb":1,"unsub":2,"ulc":192}
