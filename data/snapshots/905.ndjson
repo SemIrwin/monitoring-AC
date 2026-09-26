@@ -34,7 +34,6 @@
 {"t":1788557673,"send":2380,"open_u":1461,"open_t":2881,"click_u":786,"click_t":1862,"hb":11,"sb":7,"unsub":4,"ulc":1084}
 {"t":1788583222,"send":2402,"open_u":1480,"open_t":2908,"click_u":795,"click_t":1881,"hb":11,"sb":7,"unsub":4,"ulc":1095}
 {"t":1788599395,"send":2450,"open_u":1507,"open_t":2964,"click_u":808,"click_t":1921,"hb":12,"sb":7,"unsub":4,"ulc":1111}
-{"t":1788612585,"send":2472,"open_u":1528,"open_t":3010,"click_u":814,"click_t":1945,"hb":12,"sb":7,"unsub":4,"ulc":1122}
 {"t":1788624486,"send":2490,"open_u":1548,"open_t":3051,"click_u":824,"click_t":1972,"hb":12,"sb":7,"unsub":4,"ulc":1135}
 {"t":1788632720,"send":2513,"open_u":1555,"open_t":3066,"click_u":830,"click_t":1982,"hb":12,"sb":8,"unsub":4,"ulc":1143}
 {"t":1788643326,"send":2531,"open_u":1578,"open_t":3107,"click_u":841,"click_t":2010,"hb":12,"sb":8,"unsub":4,"ulc":1161}
@@ -157,3 +156,4 @@
 {"t":1790386891,"send":4799,"open_u":3088,"open_t":7062,"click_u":1758,"click_t":4875,"hb":25,"sb":16,"unsub":8,"ulc":2466}
 {"t":1790409076,"send":4799,"open_u":3091,"open_t":7068,"click_u":1759,"click_t":4878,"hb":25,"sb":16,"unsub":8,"ulc":2467}
 {"t":1790428408,"send":4799,"open_u":3092,"open_t":7074,"click_u":1761,"click_t":4884,"hb":25,"sb":16,"unsub":8,"ulc":2469}
+{"t":1790442996,"send":4799,"open_u":3092,"open_t":7075,"click_u":1761,"click_t":4884,"hb":25,"sb":16,"unsub":8,"ulc":2469}
