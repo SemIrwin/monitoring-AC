@@ -1,0 +1,22 @@
+{
+  "name": "ac-mail-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Réécriture assistée (règles + LLM + revue) des mentions live/direct dans les emails d'une automatisation ActiveCampaign, via Playwright.",
+  "type": "module",
+  "bin": {
+    "ac-mail-editor": "./cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/rules.test.mjs test/textmap.test.mjs",
+    "test:e2e": "node --test test/e2e-editor.test.mjs",
+    "review": "node cli.mjs review"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
+    "playwright": "^1.62.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

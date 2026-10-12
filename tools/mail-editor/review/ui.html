@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revue des remplacements — live / direct</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --ink: #1c2430; --muted: #66707d;
+    --line: #e3e7ec; --accent: #2563eb; --ok: #16803c; --warn: #b45309; --bad: #b91c1c;
+    --mark-before: #fde8e8; --mark-after: #e5f4e9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c; --card: #1a2027; --ink: #e8ecf1; --muted: #96a0ac;
+      --line: #2a323c; --accent: #7aa2ff; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+      --mark-before: #4a2020; --mark-after: #1d3a26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--card);
+           border-bottom: 1px solid var(--line); padding: 12px 20px;
+           display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .stats { color: var(--muted); }
+  header button { margin-left: auto; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .email { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+           margin-bottom: 18px; overflow: hidden; }
+  .email > h2 { font-size: 15px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line);
+                display: flex; align-items: center; gap: 10px; }
+  .email > h2 .count { color: var(--muted); font-weight: normal; font-size: 13px; }
+  .occ { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid;
+         grid-template-columns: auto 1fr; gap: 6px 14px; }
+  .occ:last-child { border-bottom: 0; }
+  .occ.rejected { opacity: .55; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line);
+           white-space: nowrap; align-self: start; margin-top: 3px; }
+  .badge.live_vip { color: var(--accent); }
+  .badge.live { color: var(--ok); }
+  .badge.direct { color: var(--warn); }
+  .sentence { grid-column: 2; }
+  .sentence mark { background: var(--mark-before); color: inherit; padding: 0 2px; border-radius: 3px; }
+  .row { grid-column: 2; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .before { background: var(--mark-before); padding: 2px 6px; border-radius: 4px;
+            text-decoration: line-through; }
+  .arrow { color: var(--muted); }
+  input.after { background: var(--mark-after); color: inherit; border: 1px solid var(--line);
+                border-radius: 4px; padding: 4px 8px; min-width: 220px; flex: 1;
+                font: inherit; }
+  input.after.bad { border-color: var(--bad); outline: 1px solid var(--bad); }
+  .meta { grid-column: 2; color: var(--muted); font-size: 12.5px; }
+  .meta .src { text-transform: uppercase; letter-spacing: .04em; font-size: 10.5px;
+               border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 6px; }
+  label.approve { display: flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+  button { font: inherit; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--line);
+           background: var(--card); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+           background: var(--ink); color: var(--bg); padding: 9px 18px; border-radius: 8px;
+           opacity: 0; transition: opacity .25s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  a.shot { color: var(--accent); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Revue des remplacements</h1>
+  <span class="stats" id="stats"></span>
+  <button id="approve-all">Tout approuver (propositions sûres)</button>
+  <button class="primary" id="save">Enregistrer les décisions</button>
+</header>
+<main id="app"><p class="empty">Chargement…</p></main>
+<div id="toast"></div>
+
+<script>
+const KIND_LABEL = { live_vip: 'live + vip → session', live: 'live → rendez-vous', direct: 'direct → reformuler' };
+const FORBIDDEN = /(?<![\p{L}])(live|direct|rediffusion|replay|rediff|enregistré|enregistrement)(?![\p{L}])/iu;
+let plan = null;
+const state = {}; // occId → { approved, replacement }
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function highlight(sentence, matched) {
+  // Toutes les instances du mot : quand il apparaît plusieurs fois dans la
+  // phrase, impossible de savoir laquelle est visée — on les montre toutes,
+  // la ligne « avant → après » donne le fragment exact.
+  const low = sentence.toLowerCase();
+  const needle = matched.toLowerCase();
+  let out = '';
+  let pos = 0;
+  for (let i = low.indexOf(needle); i !== -1; i = low.indexOf(needle, pos)) {
+    out += esc(sentence.slice(pos, i)) + '<mark>' + esc(sentence.slice(i, i + matched.length)) + '</mark>';
+    pos = i + matched.length;
+  }
+  return out + esc(sentence.slice(pos));
+}
+
+function render() {
+  const app = document.getElementById('app');
+  const emails = plan.proposals.emails.filter((e) => e.blocks.some((b) => b.occurrences.length));
+  if (emails.length === 0) {
+    app.innerHTML = '<p class="empty">Aucune occurrence de « live » ou « direct » détectée. 🎉</p>';
+    updateStats();
+    return;
+  }
+  app.innerHTML = emails.map((email) => {
+    const occs = email.blocks.flatMap((block) => block.occurrences.map((occ) => {
+      const s = state[occ.id];
+      const before = block.text.slice(occ.proposal.start, occ.proposal.end);
+      const noop = s.replacement === before || occ.keep;
+      return `
+      <div class="occ ${s.approved ? '' : 'rejected'}" data-id="${esc(occ.id)}">
+        <span class="badge ${occ.kind}">${KIND_LABEL[occ.kind] || occ.kind}</span>
+        <div class="sentence">${highlight(occ.sentence, occ.matched)}</div>
+        <div class="row">
+          <span class="before">${esc(before)}</span><span class="arrow">→</span>
+          <input class="after" value="${esc(s.replacement)}" ${noop && !s.approved ? 'placeholder="(inchangé)"' : ''}>
+          <label class="approve"><input type="checkbox" class="ok" ${s.approved ? 'checked' : ''}> appliquer</label>
+        </div>
+        <div class="meta">
+          <span class="src">${occ.source}</span>
+          ${occ.confidence === 'low' ? '⚠ confiance basse (probable autre sens de « direct ») · ' : ''}
+          ${esc(occ.note || '')}
+        </div>
+      </div>`;
+    }));
+    const shot = email.screenshot ? ` <a class="shot" href="/shots/${esc(email.screenshot.split(/[\\/]/).pop())}" target="_blank">capture</a>` : '';
+    return `<section class="email"><h2>${esc(email.name)} <span class="count">${occs.length} occurrence(s)</span>${shot}</h2>${occs.join('')}</section>`;
+  }).join('');
+
+  app.querySelectorAll('.occ').forEach((el) => {
+    const id = el.dataset.id;
+    const input = el.querySelector('input.after');
+    const check = el.querySelector('input.ok');
+    input.addEventListener('input', () => {
+      state[id].replacement = input.value;
+      input.classList.toggle('bad', FORBIDDEN.test(input.value));
+      updateStats();
+    });
+    input.classList.toggle('bad', FORBIDDEN.test(input.value));
+    check.addEventListener('change', () => {
+      state[id].approved = check.checked;
+      el.classList.toggle('rejected', !check.checked);
+      updateStats();
+    });
+  });
+  updateStats();
+}
+
+function updateStats() {
+  const ids = Object.keys(state);
+  const on = ids.filter((id) => state[id].approved).length;
+  const bad = ids.filter((id) => state[id].approved && FORBIDDEN.test(state[id].replacement)).length;
+  document.getElementById('stats').textContent =
+    `${on}/${ids.length} approuvée(s)` + (bad ? ` — ⚠ ${bad} avec terme interdit` : '');
+}
+
+async function load() {
+  const res = await fetch('/api/plan');
+  plan = await res.json();
+  for (const email of plan.proposals.emails) {
+    for (const block of email.blocks) {
+      for (const occ of block.occurrences) {
+        const saved = plan.decisions[occ.id];
+        state[occ.id] = saved
+          ? { approved: !!saved.approved, replacement: saved.replacement ?? occ.proposal.replacement }
+          : { approved: !!occ.approved, replacement: occ.proposal.replacement };
+      }
+    }
+  }
+  render();
+}
+
+document.getElementById('approve-all').addEventListener('click', () => {
+  for (const email of plan.proposals.emails) {
+    for (const block of email.blocks) {
+      for (const occ of block.occurrences) {
+        if (occ.keep || occ.confidence === 'low') continue;
+        if (FORBIDDEN.test(state[occ.id].replacement)) continue;
+        state[occ.id].approved = true;
+      }
+    }
+  }
+  render();
+});
+
+document.getElementById('save').addEventListener('click', async () => {
+  const bad = Object.keys(state).filter((id) => state[id].approved && FORBIDDEN.test(state[id].replacement));
+  if (bad.length && !confirm(`${bad.length} remplacement(s) approuvé(s) contiennent encore « live », « direct » ou un terme trahissant une rediffusion. Enregistrer quand même ?`)) return;
+  const res = await fetch('/api/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decisions: state }),
+  });
+  const out = await res.json().catch(() => ({}));
+  const toast = document.getElementById('toast');
+  toast.textContent = out.ok ? 'Décisions enregistrées — étape suivante : node cli.mjs apply' : 'Échec de l\'enregistrement';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+});
+
+load();
+</script>
+</body>
+</html>
