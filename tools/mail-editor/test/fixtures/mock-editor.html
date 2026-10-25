@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Éditeur simulé</title></head>
+<body>
+  <!-- Simule l'éditeur AC : blocs contenteditable avec formatage, champ objet. -->
+  <input type="text" name="campaign_subject" placeholder="Objet" value="Ce soir : live VIP en direct">
+
+  <div id="block-a" contenteditable="true">
+    <p>Demain soir, je suis <strong>en direct</strong> avec toi pour le
+      <a href="https://example.com"><em>live</em></a> de lancement.</p>
+  </div>
+
+  <div id="block-b" contenteditable="true">
+    <p>Rejoins le <strong>live</strong> VIP maintenant — réponse directe garantie.</p>
+  </div>
+
+  <!-- Bloc imbriqué : seul le parent doit être extrait. -->
+  <div id="block-c" contenteditable="true">
+    <p>Un dernier mot <span contenteditable="true">sans live ici</span> pour finir.</p>
+  </div>
+
+  <iframe id="inner" srcdoc='<div contenteditable="true"><p>Dans l&#39;iframe : on est <b>en direct</b> !</p></div>'></iframe>
+
+  <!-- Deuxième iframe srcdoc : même « URL » de frame, les blockId doivent rester uniques. -->
+  <iframe id="inner2" srcdoc='<div contenteditable="true"><p>Deuxième iframe : le live continue.</p></div>'></iframe>
+
+  <script>
+    window.__inputEvents = [];
+    document.addEventListener('input', (e) => window.__inputEvents.push(e.target.id || e.target.name), true);
+  </script>
+</body>
+</html>
