@@ -1,6 +1,5 @@
 {"t":1787755824,"send":1311,"open_u":792,"open_t":1514,"click_u":421,"click_t":946,"hb":7,"sb":3,"unsub":2,"ulc":582}
 {"t":1787787970,"send":1325,"open_u":804,"open_t":1550,"click_u":430,"click_t":974,"hb":7,"sb":3,"unsub":2,"ulc":597}
-{"t":1787824815,"send":1333,"open_u":809,"open_t":1570,"click_u":433,"click_t":985,"hb":7,"sb":3,"unsub":2,"ulc":601}
 {"t":1787862965,"send":1358,"open_u":827,"open_t":1611,"click_u":440,"click_t":1003,"hb":8,"sb":3,"unsub":2,"ulc":611}
 {"t":1787894948,"send":1374,"open_u":832,"open_t":1622,"click_u":442,"click_t":1006,"hb":8,"sb":3,"unsub":2,"ulc":613}
 {"t":1787943028,"send":1432,"open_u":870,"open_t":1709,"click_u":467,"click_t":1062,"hb":9,"sb":4,"unsub":2,"ulc":650}
@@ -266,7 +265,6 @@
 {"t":1793740097,"send":4800,"open_u":3136,"open_t":7460,"click_u":1775,"click_t":5013,"hb":25,"sb":16,"unsub":9,"ulc":2491}
 {"t":1793755750,"send":4800,"open_u":3136,"open_t":7460,"click_u":1775,"click_t":5013,"hb":25,"sb":16,"unsub":9,"ulc":2491}
 {"t":1793784575,"send":4800,"open_u":3136,"open_t":7462,"click_u":1775,"click_t":5016,"hb":25,"sb":16,"unsub":9,"ulc":2491}
-{"t":1793815494,"send":4800,"open_u":3136,"open_t":7462,"click_u":1775,"click_t":5016,"hb":25,"sb":16,"unsub":9,"ulc":2491}
 {"t":1793836001,"send":4800,"open_u":3136,"open_t":7463,"click_u":1775,"click_t":5016,"hb":25,"sb":16,"unsub":9,"ulc":2491}
 {"t":1793862092,"send":4800,"open_u":3136,"open_t":7463,"click_u":1775,"click_t":5016,"hb":25,"sb":16,"unsub":9,"ulc":2491}
 {"t":1793893068,"send":4800,"open_u":3136,"open_t":7464,"click_u":1775,"click_t":5016,"hb":25,"sb":16,"unsub":9,"ulc":2491}
@@ -337,3 +335,4 @@
 {"t":1795561622,"send":4800,"open_u":3143,"open_t":7516,"click_u":1778,"click_t":5032,"hb":25,"sb":16,"unsub":9,"ulc":2494}
 {"t":1795584654,"send":4800,"open_u":3143,"open_t":7516,"click_u":1778,"click_t":5032,"hb":25,"sb":16,"unsub":9,"ulc":2494}
 {"t":1795627561,"send":4800,"open_u":3143,"open_t":7516,"click_u":1778,"click_t":5032,"hb":25,"sb":16,"unsub":9,"ulc":2494}
+{"t":1795657871,"send":4800,"open_u":3143,"open_t":7517,"click_u":1778,"click_t":5033,"hb":25,"sb":16,"unsub":9,"ulc":2494}
